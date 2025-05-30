@@ -16,6 +16,7 @@ const empresasRoutes = require('./routes/empresas');
 const veiculosRoutes = require('./routes/veiculos');
 const registrosRoutes = require('./routes/registros');
 const taxasRoutes = require('./routes/taxas');
+const configValoresRoutes = require('./routes/config_valores');
 
 // Rotas
 app.use('/api/auth', authRoutes);
@@ -23,6 +24,7 @@ app.use('/api/empresas', empresasRoutes);
 app.use('/api/veiculos', veiculosRoutes);
 app.use('/api/registros', registrosRoutes);
 app.use('/api/taxas', taxasRoutes);
+app.use('/api/config_valores', configValoresRoutes);
 
 const PORT = process.env.PORT || 3000;
 

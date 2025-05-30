@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Button, Card, Title, Paragraph, FAB, Portal, Modal, TextInput, Text } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Clipboard } from 'react-native';
+import { Button, Card, Title, Paragraph, FAB, Portal, Modal, TextInput, Text, IconButton } from 'react-native-paper';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
 import { theme } from '../../theme';
@@ -20,6 +20,8 @@ export default function AdminDashboard({ navigation }) {
     telefone: '',
     endereco: '',
   });
+  const [resetPasswordModal, setResetPasswordModal] = useState(false);
+  const [novaSenha, setNovaSenha] = useState('');
 
   useEffect(() => {
     loadEmpresas();
@@ -80,6 +82,23 @@ export default function AdminDashboard({ navigation }) {
     }
   }
 
+  async function handleResetPassword(empresaId) {
+    try {
+      setError('');
+      const response = await axios.post(`${api.baseURL}/api/empresas/${empresaId}/reset-password`);
+      setNovaSenha(response.data.novaSenha);
+      setResetPasswordModal(true);
+      await Clipboard.setString(response.data.novaSenha);
+    } catch (error) {
+      console.error('Erro ao resetar senha:', error);
+      if (error.response?.data?.message) {
+        setError(error.response.data.message);
+      } else {
+        setError('Erro ao resetar senha. Tente novamente.');
+      }
+    }
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView>
@@ -115,7 +134,14 @@ export default function AdminDashboard({ navigation }) {
             empresas.map((empresa) => (
               <Card key={empresa.id} style={styles.empresaCard}>
                 <Card.Content>
-                  <Title>{empresa.nome}</Title>
+                  <View style={styles.empresaHeader}>
+                    <Title>{empresa.nome}</Title>
+                    <IconButton
+                      icon="key"
+                      size={24}
+                      onPress={() => handleResetPassword(empresa.id)}
+                    />
+                  </View>
                   <Paragraph>CNPJ: {empresa.cnpj}</Paragraph>
                   <Paragraph>Email: {empresa.email}</Paragraph>
                   <Paragraph>Telefone: {empresa.telefone}</Paragraph>
@@ -185,6 +211,26 @@ export default function AdminDashboard({ navigation }) {
             style={styles.button}
           >
             Cadastrar
+          </Button>
+        </Modal>
+
+        <Modal
+          visible={resetPasswordModal}
+          onDismiss={() => setResetPasswordModal(false)}
+          contentContainerStyle={styles.modal}
+        >
+          <Title style={styles.modalTitle}>Nova Senha Gerada</Title>
+          <Text style={styles.novaSenhaText}>{novaSenha}</Text>
+          <Text style={styles.copiedText}>Senha copiada para a área de transferência!</Text>
+          <Button
+            mode="contained"
+            onPress={() => {
+              setResetPasswordModal(false);
+              setNovaSenha('');
+            }}
+            style={styles.button}
+          >
+            Fechar
           </Button>
         </Modal>
       </Portal>
@@ -274,5 +320,21 @@ const styles = StyleSheet.create({
   logoutButton: {
     margin: 16,
     marginTop: 'auto',
+  },
+  empresaHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  novaSenhaText: {
+    fontSize: 24,
+    textAlign: 'center',
+    marginVertical: 20,
+    fontFamily: 'monospace',
+  },
+  copiedText: {
+    textAlign: 'center',
+    color: theme.colors.success,
+    marginBottom: 20,
   },
 }); 

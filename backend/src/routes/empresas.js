@@ -21,7 +21,7 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: 'Token não fornecido' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'sua_chave_secreta');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'gatossauro');
     req.user = decoded;
     next();
   } catch (error) {
@@ -106,6 +106,24 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     res.json({ message: 'Empresa deletada com sucesso' });
   } catch (error) {
     res.status(500).json({ message: 'Erro ao deletar empresa' });
+  }
+});
+
+// Resetar senha de uma empresa (apenas admin)
+router.post('/:id/reset-password', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const empresaId = req.params.id;
+    const novaSenha = Math.random().toString(36).slice(-8); // Gera uma senha aleatória de 8 caracteres
+    const senhaHash = await bcrypt.hash(novaSenha, 10);
+
+    await pool.query(
+      'UPDATE empresas SET senha = ? WHERE id = ?',
+      [senhaHash, empresaId]
+    );
+
+    res.json({ novaSenha });
+  } catch (error) {
+    res.status(500).json({ message: 'Erro ao resetar senha' });
   }
 });
 

@@ -15,6 +15,14 @@ const initDatabase = async () => {
   try {
     const connection = await pool.getConnection();
     
+    // Dropar tabelas existentes na ordem correta
+    await connection.query('DROP TABLE IF EXISTS registros');
+    await connection.query('DROP TABLE IF EXISTS config_valores');
+    await connection.query('DROP TABLE IF EXISTS veiculos');
+    await connection.query('DROP TABLE IF EXISTS taxas');
+    await connection.query('DROP TABLE IF EXISTS administradores');
+    await connection.query('DROP TABLE IF EXISTS empresas');
+    
     // Criar tabela de administradores
     await connection.query(`
       CREATE TABLE IF NOT EXISTS administradores (
@@ -60,7 +68,7 @@ const initDatabase = async () => {
         placa VARCHAR(10) NOT NULL,
         modelo VARCHAR(100),
         cor VARCHAR(50),
-        tipo VARCHAR(50),
+        tipo ENUM('carro', 'moto', 'caminhao') NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (empresa_id) REFERENCES empresas(id)
       )
@@ -71,10 +79,28 @@ const initDatabase = async () => {
       CREATE TABLE IF NOT EXISTS registros (
         id INT AUTO_INCREMENT PRIMARY KEY,
         veiculo_id INT NOT NULL,
+        empresa_id INT NOT NULL,
         tipo ENUM('entrada', 'saida') NOT NULL,
         data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         valor DECIMAL(10,2),
-        FOREIGN KEY (veiculo_id) REFERENCES veiculos(id)
+        saida_id INT,
+        tempo_permanencia DECIMAL(10,2),
+        FOREIGN KEY (veiculo_id) REFERENCES veiculos(id),
+        FOREIGN KEY (empresa_id) REFERENCES empresas(id)
+      )
+    `);
+
+    // Criar tabela de configuração de valores
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS config_valores (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        empresa_id INT NOT NULL,
+        tipo_veiculo ENUM('carro', 'moto', 'caminhao') NOT NULL,
+        valor_hora DECIMAL(10,2) NOT NULL,
+        valor_fracao DECIMAL(10,2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (empresa_id) REFERENCES empresas(id),
+        UNIQUE KEY unique_tipo_empresa (empresa_id, tipo_veiculo)
       )
     `);
 
