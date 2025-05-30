@@ -113,7 +113,7 @@ export default function EmpresaDashboard({ navigation }) {
     setSaidaModal(true);
   }
 
-  async function confirmarSaida() {
+  async function confirmarSaida() { 
     try {
       setError('');
       console.log('Saída payload:', { placa: veiculoSaida.placa, senha: senhaSaida });
