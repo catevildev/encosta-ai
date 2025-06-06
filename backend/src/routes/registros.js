@@ -4,6 +4,45 @@ const { pool } = require('../config/database');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Registro:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID do registro
+ *         veiculo_id:
+ *           type: integer
+ *           description: ID do veículo
+ *         tipo:
+ *           type: string
+ *           enum: [entrada, saida]
+ *           description: Tipo do registro
+ *         data_hora:
+ *           type: string
+ *           format: date-time
+ *           description: Data e hora do registro
+ *         valor:
+ *           type: number
+ *           format: float
+ *           description: Valor cobrado (apenas para saída)
+ *         placa:
+ *           type: string
+ *           description: Placa do veículo
+ *         modelo:
+ *           type: string
+ *           description: Modelo do veículo
+ *         tipo_veiculo:
+ *           type: string
+ *           description: Tipo do veículo
+ *         empresa_nome:
+ *           type: string
+ *           description: Nome da empresa
+ */
+
 // Middleware de autenticação
 const authMiddleware = async (req, res, next) => {
   try {
@@ -21,7 +60,39 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-// Registrar entrada
+/**
+ * @swagger
+ * /api/registros/entrada:
+ *   post:
+ *     summary: Registrar entrada de veículo
+ *     tags: [Registros]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - placa
+ *               - tipo
+ *             properties:
+ *               placa:
+ *                 type: string
+ *               tipo:
+ *                 type: string
+ *                 enum: [carro, moto, caminhao]
+ *     responses:
+ *       201:
+ *         description: Entrada registrada com sucesso
+ *       400:
+ *         description: Veículo já está no estacionamento
+ *       401:
+ *         description: Não autorizado
+ *       500:
+ *         description: Erro ao registrar entrada
+ */
 router.post('/entrada', async (req, res) => {
   const { placa, tipo } = req.body;
   
@@ -87,7 +158,50 @@ router.post('/entrada', async (req, res) => {
   }
 });
 
-// Registrar saída
+/**
+ * @swagger
+ * /api/registros/saida:
+ *   post:
+ *     summary: Registrar saída de veículo
+ *     tags: [Registros]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - placa
+ *               - senha
+ *             properties:
+ *               placa:
+ *                 type: string
+ *               senha:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Saída registrada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 placa:
+ *                   type: string
+ *                 valorTotal:
+ *                   type: number
+ *                   format: float
+ *                 tempoPermanencia:
+ *                   type: string
+ *       400:
+ *         description: Veículo não está no estacionamento
+ *       401:
+ *         description: Senha incorreta
+ *       500:
+ *         description: Erro ao registrar saída
+ */
 router.post('/saida', async (req, res) => {
   const { placa, senha } = req.body;
   
@@ -177,7 +291,28 @@ router.post('/saida', async (req, res) => {
   }
 });
 
-// Listar registros
+/**
+ * @swagger
+ * /api/registros:
+ *   get:
+ *     summary: Listar registros
+ *     tags: [Registros]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de registros
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Registro'
+ *       401:
+ *         description: Não autorizado
+ *       500:
+ *         description: Erro ao listar registros
+ */
 router.get('/', authMiddleware, async (req, res) => {
   try {
     let query = `

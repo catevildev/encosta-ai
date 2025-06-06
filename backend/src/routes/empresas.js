@@ -4,6 +4,37 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../config/database');
 const jwt = require('jsonwebtoken');
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Empresa:
+ *       type: object
+ *       required:
+ *         - nome
+ *         - email
+ *         - senha
+ *         - telefone
+ *         - endereco
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID da empresa
+ *         nome:
+ *           type: string
+ *           description: Nome da empresa
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: Email da empresa
+ *         telefone:
+ *           type: string
+ *           description: Telefone da empresa
+ *         endereco:
+ *           type: string
+ *           description: Endereço da empresa
+ */
+
 // Middleware para verificar se é admin
 const adminMiddleware = (req, res, next) => {
   if (req.user.tipo !== 'admin') {
@@ -29,7 +60,37 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-// Cadastrar nova empresa (apenas admin)
+/**
+ * @swagger
+ * /api/empresas:
+ *   post:
+ *     summary: Cadastrar nova empresa
+ *     tags: [Empresas]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Empresa'
+ *     responses:
+ *       201:
+ *         description: Empresa cadastrada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 nome:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *       400:
+ *         description: Email já cadastrado
+ *       500:
+ *         description: Erro ao cadastrar empresa
+ */
 router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { nome, cnpj, email, senha, telefone, endereco } = req.body;
@@ -49,7 +110,28 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-// Listar todas as empresas (apenas admin)
+/**
+ * @swagger
+ * /api/empresas:
+ *   get:
+ *     summary: Listar empresas
+ *     tags: [Empresas]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de empresas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Empresa'
+ *       401:
+ *         description: Não autorizado
+ *       500:
+ *         description: Erro ao listar empresas
+ */
 router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const [empresas] = await pool.query('SELECT id, nome, cnpj, email, telefone, endereco, created_at FROM empresas');
@@ -59,7 +141,35 @@ router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-// Obter detalhes de uma empresa
+/**
+ * @swagger
+ * /api/empresas/{id}:
+ *   get:
+ *     summary: Obter detalhes de uma empresa
+ *     tags: [Empresas]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID da empresa
+ *     responses:
+ *       200:
+ *         description: Detalhes da empresa
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Empresa'
+ *       401:
+ *         description: Não autorizado
+ *       404:
+ *         description: Empresa não encontrada
+ *       500:
+ *         description: Erro ao obter detalhes da empresa
+ */
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const [empresas] = await pool.query(
@@ -77,7 +187,46 @@ router.get('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Atualizar empresa
+/**
+ * @swagger
+ * /api/empresas/{id}:
+ *   put:
+ *     summary: Atualizar empresa
+ *     tags: [Empresas]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID da empresa
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nome:
+ *                 type: string
+ *               telefone:
+ *                 type: string
+ *               endereco:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Empresa atualizada com sucesso
+ *       401:
+ *         description: Não autorizado
+ *       403:
+ *         description: Acesso negado
+ *       404:
+ *         description: Empresa não encontrada
+ *       500:
+ *         description: Erro ao atualizar empresa
+ */
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { nome, telefone, endereco } = req.body;
@@ -99,7 +248,33 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Deletar empresa (apenas admin)
+/**
+ * @swagger
+ * /api/empresas/{id}:
+ *   delete:
+ *     summary: Deletar empresa
+ *     tags: [Empresas]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID da empresa
+ *     responses:
+ *       200:
+ *         description: Empresa deletada com sucesso
+ *       401:
+ *         description: Não autorizado
+ *       403:
+ *         description: Acesso negado
+ *       404:
+ *         description: Empresa não encontrada
+ *       500:
+ *         description: Erro ao deletar empresa
+ */
 router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     await pool.query('DELETE FROM empresas WHERE id = ?', [req.params.id]);

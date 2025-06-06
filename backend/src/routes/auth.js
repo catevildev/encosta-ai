@@ -4,7 +4,49 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/database');
 
-// Login de administrador
+/**
+ * @swagger
+ * /api/auth/admin/login:
+ *   post:
+ *     summary: Login de administrador
+ *     tags: [Autenticação]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - senha
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               senha:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login realizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 admin:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     nome:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *       401:
+ *         description: Credenciais inválidas
+ */
 router.post('/admin/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
@@ -33,7 +75,49 @@ router.post('/admin/login', async (req, res) => {
   }
 });
 
-// Login de empresa
+/**
+ * @swagger
+ * /api/auth/empresa/login:
+ *   post:
+ *     summary: Login de empresa
+ *     tags: [Autenticação]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - senha
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               senha:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login realizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 empresa:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     nome:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *       401:
+ *         description: Credenciais inválidas
+ */
 router.post('/empresa/login', async (req, res) => {
   try {
     const { email, senha } = req.body;

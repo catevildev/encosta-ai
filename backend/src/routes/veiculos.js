@@ -3,6 +3,39 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const jwt = require('jsonwebtoken');
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Veiculo:
+ *       type: object
+ *       required:
+ *         - placa
+ *         - modelo
+ *         - cor
+ *         - tipo
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID do veículo
+ *         placa:
+ *           type: string
+ *           description: Placa do veículo
+ *         modelo:
+ *           type: string
+ *           description: Modelo do veículo
+ *         cor:
+ *           type: string
+ *           description: Cor do veículo
+ *         tipo:
+ *           type: string
+ *           enum: [carro, moto, caminhao]
+ *           description: Tipo do veículo
+ *         empresa_id:
+ *           type: integer
+ *           description: ID da empresa proprietária
+ */
+
 // Middleware de autenticação
 const authMiddleware = async (req, res, next) => {
   try {
@@ -20,7 +53,32 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-// Cadastrar novo veículo
+/**
+ * @swagger
+ * /api/veiculos:
+ *   post:
+ *     summary: Cadastrar novo veículo
+ *     tags: [Veículos]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Veiculo'
+ *     responses:
+ *       201:
+ *         description: Veículo cadastrado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Veiculo'
+ *       401:
+ *         description: Não autorizado
+ *       500:
+ *         description: Erro ao cadastrar veículo
+ */
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const { placa, modelo, cor, tipo } = req.body;
@@ -37,7 +95,28 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Listar veículos
+/**
+ * @swagger
+ * /api/veiculos:
+ *   get:
+ *     summary: Listar veículos
+ *     tags: [Veículos]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de veículos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Veiculo'
+ *       401:
+ *         description: Não autorizado
+ *       500:
+ *         description: Erro ao listar veículos
+ */
 router.get('/', authMiddleware, async (req, res) => {
   try {
     let query = 'SELECT v.*, e.nome as empresa_nome FROM veiculos v JOIN empresas e ON v.empresa_id = e.id';
@@ -55,7 +134,35 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Obter detalhes de um veículo
+/**
+ * @swagger
+ * /api/veiculos/{id}:
+ *   get:
+ *     summary: Obter detalhes de um veículo
+ *     tags: [Veículos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID do veículo
+ *     responses:
+ *       200:
+ *         description: Detalhes do veículo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Veiculo'
+ *       401:
+ *         description: Não autorizado
+ *       404:
+ *         description: Veículo não encontrado
+ *       500:
+ *         description: Erro ao obter detalhes do veículo
+ */
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const [veiculos] = await pool.query(
@@ -78,7 +185,47 @@ router.get('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Atualizar veículo
+/**
+ * @swagger
+ * /api/veiculos/{id}:
+ *   put:
+ *     summary: Atualizar veículo
+ *     tags: [Veículos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID do veículo
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               modelo:
+ *                 type: string
+ *               cor:
+ *                 type: string
+ *               tipo:
+ *                 type: string
+ *                 enum: [carro, moto, caminhao]
+ *     responses:
+ *       200:
+ *         description: Veículo atualizado com sucesso
+ *       401:
+ *         description: Não autorizado
+ *       403:
+ *         description: Acesso negado
+ *       404:
+ *         description: Veículo não encontrado
+ *       500:
+ *         description: Erro ao atualizar veículo
+ */
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { modelo, cor, tipo } = req.body;
@@ -109,7 +256,33 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Deletar veículo
+/**
+ * @swagger
+ * /api/veiculos/{id}:
+ *   delete:
+ *     summary: Deletar veículo
+ *     tags: [Veículos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID do veículo
+ *     responses:
+ *       200:
+ *         description: Veículo deletado com sucesso
+ *       401:
+ *         description: Não autorizado
+ *       403:
+ *         description: Acesso negado
+ *       404:
+ *         description: Veículo não encontrado
+ *       500:
+ *         description: Erro ao deletar veículo
+ */
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const veiculoId = req.params.id;

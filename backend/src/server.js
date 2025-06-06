@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const { initDatabase } = require('./config/database');
 const { seedDatabase } = require('./config/seed');
+const swaggerUi = require('swagger-ui-express');
+const specs = require('./config/swagger');
 require('dotenv').config();
 
 const app = express();
@@ -9,6 +11,9 @@ const app = express();
 // Middlewares
 app.use(cors());
 app.use(express.json());
+
+// Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 // Importação das rotas
 const authRoutes = require('./routes/auth');

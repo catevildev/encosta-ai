@@ -3,6 +3,37 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const jwt = require('jsonwebtoken');
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ConfigValor:
+ *       type: object
+ *       required:
+ *         - tipo_veiculo
+ *         - valor_hora
+ *         - valor_fracao
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID da configuração
+ *         tipo_veiculo:
+ *           type: string
+ *           enum: [carro, moto, caminhao]
+ *           description: Tipo do veículo
+ *         valor_hora:
+ *           type: number
+ *           format: float
+ *           description: Valor por hora
+ *         valor_fracao:
+ *           type: number
+ *           format: float
+ *           description: Valor por fração (15 minutos)
+ *         empresa_id:
+ *           type: integer
+ *           description: ID da empresa
+ */
+
 // Middleware de autenticação
 const authMiddleware = async (req, res, next) => {
   try {
@@ -20,7 +51,28 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-// Listar configurações
+/**
+ * @swagger
+ * /api/config_valores:
+ *   get:
+ *     summary: Listar configurações de valores
+ *     tags: [Configurações]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de configurações
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/ConfigValor'
+ *       401:
+ *         description: Não autorizado
+ *       500:
+ *         description: Erro ao listar configurações
+ */
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const empresaId = req.user.tipo === 'admin' ? req.query.empresa_id : req.user.id;
@@ -34,7 +86,44 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Atualizar configuração
+/**
+ * @swagger
+ * /api/config_valores/{id}:
+ *   put:
+ *     summary: Atualizar configuração de valores
+ *     tags: [Configurações]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID da configuração
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               valor_hora:
+ *                 type: number
+ *                 format: float
+ *               valor_fracao:
+ *                 type: number
+ *                 format: float
+ *     responses:
+ *       200:
+ *         description: Configuração atualizada com sucesso
+ *       401:
+ *         description: Não autorizado
+ *       404:
+ *         description: Configuração não encontrada
+ *       500:
+ *         description: Erro ao atualizar configuração
+ */
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { valor_hora, valor_fracao } = req.body;
@@ -62,7 +151,51 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Criar configuração
+/**
+ * @swagger
+ * /api/config_valores:
+ *   post:
+ *     summary: Criar nova configuração de valores
+ *     tags: [Configurações]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - tipo_veiculo
+ *               - valor_hora
+ *               - valor_fracao
+ *             properties:
+ *               tipo_veiculo:
+ *                 type: string
+ *                 enum: [carro, moto, caminhao]
+ *               valor_hora:
+ *                 type: number
+ *                 format: float
+ *               valor_fracao:
+ *                 type: number
+ *                 format: float
+ *     responses:
+ *       201:
+ *         description: Configuração criada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *       400:
+ *         description: Já existe uma configuração para este tipo de veículo
+ *       401:
+ *         description: Não autorizado
+ *       500:
+ *         description: Erro ao criar configuração
+ */
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const { tipo_veiculo, valor_hora, valor_fracao } = req.body;
