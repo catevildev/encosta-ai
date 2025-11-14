@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Clipboard } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, ScrollView, Clipboard, Animated, TouchableOpacity, Text as RNText, Alert } from 'react-native';
 import { Button, Card, Title, Paragraph, FAB, Portal, Modal, TextInput, Text, DataTable, IconButton, Menu, RadioButton, List } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
 import { theme } from '../../theme';
@@ -9,15 +10,18 @@ import { ptBR } from 'date-fns/locale';
 import { api } from '../../config/api';
 import { User, Car, List as ListIcon, LogOut, Plus, SquareParking, ArrowDownRight, ArrowUpRight } from 'lucide-react-native';
 import Feather from 'react-native-vector-icons/Feather';
+import PlacaScanner from '../../components/PlacaScanner';
 
 export default function EmpresaDashboard({ navigation }) {
   const { user, signOut } = useAuth();
-  const [veiculos, setVeiculos] = useState([]);
+  const [veiculosEstacionados, setVeiculosEstacionados] = useState([]);
+  const [veiculosCadastrados, setVeiculosCadastrados] = useState([]);
   const [registros, setRegistros] = useState([]);
-  const [configValores, setConfigValores] = useState([]);
   const [visible, setVisible] = useState(false);
-  const [configModal, setConfigModal] = useState(false);
+  const [veiculosModal, setVeiculosModal] = useState(false);
   const [saidaModal, setSaidaModal] = useState(false);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [scannerMode, setScannerMode] = useState('entrada');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [senhaSaida, setSenhaSaida] = useState('');
@@ -29,30 +33,40 @@ export default function EmpresaDashboard({ navigation }) {
     tipo: 'carro',
   });
   const [showPicker, setShowPicker] = useState(false);
-  const [novaConfig, setNovaConfig] = useState({
-    tipo_veiculo: 'carro',
-    valor_hora: '',
-    valor_fracao: ''
-  });
   const [now, setNow] = useState(Date.now());
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     loadData();
     const interval = setInterval(() => setNow(Date.now()), 1000);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
     return () => clearInterval(interval);
   }, []);
 
   async function loadData() {
     try {
       setError('');
-      const [veiculosResponse, registrosResponse, configResponse] = await Promise.all([
+      const [veiculosEstacionadosResponse, veiculosCadastradosResponse, registrosResponse] = await Promise.all([
+        axios.get(`${api.baseURL}/api/veiculos/estacionados`),
         axios.get(`${api.baseURL}/api/veiculos`),
         axios.get(`${api.baseURL}/api/registros`),
-        axios.get(`${api.baseURL}/api/config_valores`),
       ]);
-      setVeiculos(veiculosResponse.data);
+      setVeiculosEstacionados(veiculosEstacionadosResponse.data);
+      setVeiculosCadastrados(veiculosCadastradosResponse.data);
       setRegistros(registrosResponse.data);
-      setConfigValores(configResponse.data);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       if (error.message === 'Network Error') {
@@ -88,19 +102,27 @@ export default function EmpresaDashboard({ navigation }) {
     }
   }
 
-  async function handleEntrada(veiculo) {
+  async function handleEntrada(placa) {
     try {
       setError('');
+      // Buscar veículo cadastrado pela placa
+      const veiculo = veiculosCadastrados.find(v => v.placa === placa);
+      if (!veiculo) {
+        alert('Veículo não encontrado. Por favor, cadastre o veículo primeiro.');
+        return;
+      }
+      
       await axios.post(`${api.baseURL}/api/registros/entrada`, {
         placa: veiculo.placa,
         tipo: veiculo.tipo
       });
       loadData();
+      alert('Entrada registrada com sucesso!');
     } catch (error) {
       console.error('Erro ao registrar entrada:', error);
       if (error.response?.data?.error) {
         setError(error.response.data.error);
-        alert(error.response.data.error);
+        alert(error.response.data.error + (error.response.data.details ? '\n' + error.response.data.details : ''));
       } else {
         setError('Erro ao registrar entrada. Tente novamente.');
         alert('Erro ao registrar entrada. Tente novamente.');
@@ -149,50 +171,8 @@ export default function EmpresaDashboard({ navigation }) {
     }
   }
 
-  async function handleConfigValores() {
-    try {
-      setError('');
-      const response = await axios.get(`${api.baseURL}/api/config_valores`);
-      setConfigValores(response.data);
-      setConfigModal(true);
-    } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
-      setError('Erro ao carregar configurações. Tente novamente.');
-    }
-  }
-
-  async function handleUpdateConfig(config) {
-    try {
-      setError('');
-      await axios.put(`${api.baseURL}/api/config_valores/${config.id}`, {
-        valor_hora: config.valor_hora,
-        valor_fracao: config.valor_fracao,
-      });
-      loadData();
-    } catch (error) {
-      console.error('Erro ao atualizar configuração:', error);
-      setError('Erro ao atualizar configuração. Tente novamente.');
-    }
-  }
-
-  async function handleCreateConfig() {
-    try {
-      setError('');
-      await axios.post(`${api.baseURL}/api/config_valores`, {
-        tipo_veiculo: novaConfig.tipo_veiculo,
-        valor_hora: parseFloat(novaConfig.valor_hora) || 0,
-        valor_fracao: parseFloat(novaConfig.valor_fracao) || 0
-      });
-      setNovaConfig({
-        tipo_veiculo: 'carro',
-        valor_hora: '',
-        valor_fracao: ''
-      });
-      loadData();
-    } catch (error) {
-      console.error('Erro ao criar configuração:', error);
-      setError('Erro ao criar configuração. Tente novamente.');
-    }
+  function handleConfigValores() {
+    navigation.navigate('ConfigValores');
   }
 
   async function handleLogout() {
@@ -210,23 +190,43 @@ export default function EmpresaDashboard({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView>
-        <Card style={styles.welcomeCard} theme={{ roundness: 0 }}>
-          <Card.Content>
-            <View style={styles.header}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <SquareParking size={22} color={theme.colors.text} style={{ marginRight: 6 }} />
-                <Title>Bem-vindo, {user?.nome || ''}!</Title>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Animated.View
+          style={[
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          ]}
+        >
+          <LinearGradient
+            colors={[theme.colors.primary, theme.colors.accent]}
+            style={styles.welcomeCard}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Card.Content style={styles.welcomeContent}>
+              <View style={styles.header}>
+                <View style={styles.headerLeft}>
+                  <View style={styles.iconWrapper}>
+                    <SquareParking size={24} color="#FFFFFF" />
+                  </View>
+                  <View>
+                    <Title style={styles.welcomeTitle}>Bem-vindo, {user?.nome || ''}!</Title>
+                    <Paragraph style={styles.welcomeSubtitle}>Gerencie seu estacionamento</Paragraph>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={handleConfigValores}
+                  style={styles.settingsButton}
+                >
+                  <IconButton
+                    icon="cog"
+                    size={24}
+                    iconColor="#FFFFFF"
+                  />
+                </TouchableOpacity>
               </View>
-              <IconButton
-                icon="cog"
-                size={24}
-                onPress={handleConfigValores}
-              />
-            </View>
-            <Paragraph>Gerencie seu estacionamento</Paragraph>
-          </Card.Content>
-        </Card>
+            </Card.Content>
+          </LinearGradient>
+        </Animated.View>
 
         {error ? (
           <Card style={styles.errorCard}>
@@ -240,68 +240,97 @@ export default function EmpresaDashboard({ navigation }) {
         ) : (
           <>
             <View style={styles.section}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Car size={20} color={theme.colors.text} style={{ marginRight: 6}} />
-                <Title style={[styles.sectionTitle, { marginBottom: 0 }]}>Veículos Cadastrados</Title>
+              <View style={styles.sectionHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <Car size={20} color={theme.colors.text} style={{ marginRight: 6}} />
+                  <Title style={[styles.sectionTitle, { marginBottom: 0 }]}>Veículos Estacionados</Title>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setVeiculosModal(true)}
+                  style={styles.manageButton}
+                >
+                  <Text style={styles.manageButtonText}>Gerenciar</Text>
+                </TouchableOpacity>
               </View>
-              {veiculos.length === 0 ? (
+              {veiculosEstacionados.length === 0 ? (
                 <Card style={styles.emptyCard}>
                   <Card.Content>
                     <Text style={styles.emptyText}>
-                      Nenhum veículo cadastrado ainda.
-                      {'\n'}Clique no botão + para adicionar um novo veículo.
+                      Nenhum veículo estacionado no momento.
+                    </Text>
+                    <Text style={styles.emptySubtext}>
+                      Registre uma entrada para começar.
                     </Text>
                   </Card.Content>
                 </Card>
               ) : (
-                veiculos.map((veiculo) => {
-                  // Usar o campo created_at do veículo para o timer
+                veiculosEstacionados.map((veiculo, index) => {
+                  // Calcular timer baseado na data_entrada
                   let timer = '';
-                  if (veiculo.created_at) {
-                    const diffMs = now - new Date(veiculo.created_at).getTime();
+                  if (veiculo.data_entrada) {
+                    const diffMs = now - new Date(veiculo.data_entrada).getTime();
                     const diffH = Math.floor(diffMs / 3600000);
                     const diffM = Math.floor((diffMs % 3600000) / 60000);
                     const diffS = Math.floor((diffMs % 60000) / 1000);
                     timer = `${diffH}h ${diffM}m ${diffS}s`;
                   }
                   return (
-                    <Card key={veiculo.id} style={styles.card}>
-                      <Card.Content>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <Title>{veiculo.placa}</Title>
-                          {timer && (
-                            <View style={{ backgroundColor: '#eee', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
-                              <Text style={{ fontWeight: 'bold', color: '#333', fontSize: 13 }}>{timer}</Text>
+                    <Animated.View
+                      key={veiculo.id}
+                      style={[
+                        {
+                          opacity: fadeAnim,
+                          transform: [
+                            {
+                              translateY: slideAnim.interpolate({
+                                inputRange: [0, 30],
+                                outputRange: [0, 30 + index * 10],
+                              }),
+                            },
+                          ],
+                        },
+                      ]}
+                    >
+                      <Card style={styles.card}>
+                        <Card.Content>
+                          <View style={styles.veiculoHeader}>
+                            <View style={styles.veiculoInfo}>
+                              <View style={styles.veiculoIcon}>
+                                <Car size={24} color={theme.colors.primary} />
+                              </View>
+                              <View>
+                                <Title style={styles.veiculoPlaca}>{veiculo.placa}</Title>
+                                <Text style={styles.veiculoTipo}>{veiculo.tipo}</Text>
+                              </View>
                             </View>
-                          )}
-                        </View>
-                        <Paragraph>Modelo: {veiculo.modelo}</Paragraph>
-                        <Paragraph>Cor: {veiculo.cor}</Paragraph>
-                        <Paragraph>Tipo: {veiculo.tipo}</Paragraph>
-                        <View style={styles.buttonContainer}>
-                          <Button
-                            mode="contained"
-                            onPress={() => handleEntrada(veiculo)}
-                            style={[styles.button, { backgroundColor: theme.colors.success }]}
-                            contentStyle={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
-                            labelStyle={{ color: '#fff', fontWeight: 'bold' }}
-                            icon={({ size, color }) => <Feather name="arrow-down-circle" size={18} color="#fff" />}
-                          >
-                            Entrada
-                          </Button>
-                          <Button
-                            mode="contained"
-                            onPress={() => handleSaida(veiculo)}
-                            style={[styles.button, { backgroundColor: theme.colors.error }]}
-                            contentStyle={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
-                            labelStyle={{ color: '#fff', fontWeight: 'bold' }}
-                            icon={({ size, color }) => <Feather name="arrow-up-circle" size={18} color="#fff" />}
-                          >
-                            Saída
-                          </Button>
-                        </View>
-                      </Card.Content>
-                    </Card>
+                            {timer && (
+                              <View style={styles.timerBadge}>
+                                <Text style={styles.timerText}>{timer}</Text>
+                              </View>
+                            )}
+                          </View>
+                          <View style={styles.veiculoDetails}>
+                            <View style={styles.detailRow}>
+                              <Text style={styles.detailLabel}>Modelo:</Text>
+                              <Text style={styles.detailValue}>{veiculo.modelo}</Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                              <Text style={styles.detailLabel}>Cor:</Text>
+                              <Text style={styles.detailValue}>{veiculo.cor}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.buttonContainer}>
+                            <TouchableOpacity
+                              onPress={() => handleSaida(veiculo)}
+                              style={[styles.actionButton, styles.saidaButton, { flex: 1 }]}
+                            >
+                              <Feather name="arrow-up-circle" size={20} color="#FFFFFF" />
+                              <Text style={styles.actionButtonText}>Registrar Saída</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </Card.Content>
+                      </Card>
+                    </Animated.View>
                   );
                 })
               )}
@@ -430,134 +459,6 @@ export default function EmpresaDashboard({ navigation }) {
         </Modal>
 
         <Modal
-          visible={configModal}
-          onDismiss={() => setConfigModal(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-            <IconButton
-              icon="arrow-left"
-              size={24}
-              onPress={() => setConfigModal(false)}
-            />
-            <Title style={[styles.modalTitle, { marginBottom: 0 }]}>Configurar Valores</Title>
-          </View>
-          {error && <Text style={styles.errorText}>{error}</Text>}
-          
-          <View style={styles.configItem}>            
-            <List.Item
-              title="Tipo de Veículo"
-              description={novaConfig.tipo_veiculo === 'carro' ? 'Carro' : 
-                          novaConfig.tipo_veiculo === 'moto' ? 'Moto' : 'Caminhão'}
-              right={props => <List.Icon {...props} icon="chevron-down" />}
-              onPress={() => setShowPicker(true)}
-              style={styles.pickerButton}
-            />
-
-            <Portal>
-              <Modal
-                visible={showPicker}
-                onDismiss={() => setShowPicker(false)}
-                contentContainerStyle={styles.pickerModal}
-              >
-                <List.Item
-                  title="Carro"
-                  onPress={() => {
-                    setNovaConfig({ ...novaConfig, tipo_veiculo: 'carro' });
-                    setShowPicker(false);
-                  }}
-                />
-                <List.Item
-                  title="Moto"
-                  onPress={() => {
-                    setNovaConfig({ ...novaConfig, tipo_veiculo: 'moto' });
-                    setShowPicker(false);
-                  }}
-                />
-                <List.Item
-                  title="Caminhão"
-                  onPress={() => {
-                    setNovaConfig({ ...novaConfig, tipo_veiculo: 'caminhao' });
-                    setShowPicker(false);
-                  }}
-                />
-              </Modal>
-            </Portal>
-
-            <TextInput
-              label="Valor por Hora (R$)"
-              value={novaConfig.valor_hora}
-              onChangeText={text => setNovaConfig({ ...novaConfig, valor_hora: text })}
-              mode="outlined"
-              keyboardType="numeric"
-              style={styles.input}
-            />
-            <TextInput
-              label="Valor por Fração (15min) (R$)"
-              value={novaConfig.valor_fracao}
-              onChangeText={text => setNovaConfig({ ...novaConfig, valor_fracao: text })}
-              mode="outlined"
-              keyboardType="numeric"
-              style={styles.input}
-            />
-            <Button
-              mode="contained"
-              onPress={handleCreateConfig}
-              style={styles.button}
-            >
-              Adicionar Configuração
-            </Button>
-          </View>
-
-          {configValores.length > 0 && (
-            <View style={styles.configList}>
-              <Title style={styles.configTitle}>Configurações Existentes</Title>
-              {configValores.map((config) => (
-                <View key={config.id} style={styles.configItem}>
-                  <Title style={styles.configTitle}>
-                    {config.tipo_veiculo === 'carro' ? 'Carro' : 
-                     config.tipo_veiculo === 'moto' ? 'Moto' : 'Caminhão'}
-                  </Title>
-                  <TextInput
-                    label="Valor por Hora (R$)"
-                    value={config.valor_hora.toString()}
-                    onChangeText={(text) => {
-                      const newConfigs = [...configValores];
-                      const index = newConfigs.findIndex(c => c.id === config.id);
-                      newConfigs[index].valor_hora = parseFloat(text) || 0;
-                      setConfigValores(newConfigs);
-                    }}
-                    mode="outlined"
-                    keyboardType="numeric"
-                    style={styles.input}
-                  />
-                  <TextInput
-                    label="Valor por Fração (15min) (R$)"
-                    value={config.valor_fracao.toString()}
-                    onChangeText={(text) => {
-                      const newConfigs = [...configValores];
-                      const index = newConfigs.findIndex(c => c.id === config.id);
-                      newConfigs[index].valor_fracao = parseFloat(text) || 0;
-                      setConfigValores(newConfigs);
-                    }}
-                    mode="outlined"
-                    keyboardType="numeric"
-                    style={styles.input}
-                  />
-                  <Button
-                    mode="contained"
-                    onPress={() => handleUpdateConfig(config)}
-                    style={styles.button}
-                  >
-                    Atualizar
-                  </Button>
-                </View>
-              ))}
-            </View>
-          )}
-        </Modal>
-
-        <Modal
           visible={saidaModal}
           onDismiss={() => {
             setSaidaModal(false);
@@ -584,22 +485,134 @@ export default function EmpresaDashboard({ navigation }) {
             Confirmar Saída
           </Button>
         </Modal>
+
+        <Modal
+          visible={veiculosModal}
+          onDismiss={() => setVeiculosModal(false)}
+          contentContainerStyle={styles.modal}
+        >
+          <View style={styles.modalHeader}>
+            <Title style={[styles.modalTitle, { marginBottom: 0, flex: 1 }]}>Veículos Cadastrados</Title>
+            <IconButton
+              icon="close"
+              size={24}
+              onPress={() => setVeiculosModal(false)}
+            />
+          </View>
+          <ScrollView style={styles.modalScrollView}>
+            {veiculosCadastrados.length === 0 ? (
+              <Text style={styles.emptyText}>Nenhum veículo cadastrado ainda.</Text>
+            ) : (
+              veiculosCadastrados.map((veiculo) => (
+                <Card key={veiculo.id} style={styles.veiculoCardModal}>
+                  <Card.Content>
+                    <View style={styles.veiculoHeader}>
+                      <View style={styles.veiculoInfo}>
+                        <View style={styles.veiculoIcon}>
+                          <Car size={20} color={theme.colors.primary} />
+                        </View>
+                        <View>
+                          <Title style={styles.veiculoPlaca}>{veiculo.placa}</Title>
+                          <Text style={styles.veiculoTipo}>{veiculo.tipo}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.veiculoDetails}>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Modelo:</Text>
+                        <Text style={styles.detailValue}>{veiculo.modelo}</Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Cor:</Text>
+                        <Text style={styles.detailValue}>{veiculo.cor}</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        handleEntrada(veiculo.placa);
+                        setVeiculosModal(false);
+                      }}
+                      style={[styles.actionButton, styles.entradaButton]}
+                    >
+                      <Feather name="arrow-down-circle" size={18} color="#FFFFFF" />
+                      <Text style={styles.actionButtonText}>Registrar Entrada</Text>
+                    </TouchableOpacity>
+                  </Card.Content>
+                </Card>
+              ))
+            )}
+          </ScrollView>
+          <Button
+            mode="contained"
+            onPress={() => {
+              setVeiculosModal(false);
+              setVisible(true);
+            }}
+            style={styles.button}
+            icon="plus"
+          >
+            Cadastrar Novo Veículo
+          </Button>
+        </Modal>
       </Portal>
 
       <FAB
         style={styles.fab}
-        icon={({ size, color }) => <Plus size={size} color={color} />}
-        onPress={() => setVisible(true)}
+        icon="camera"
+        onPress={() => {
+          setScannerMode('entrada');
+          setScannerVisible(true);
+        }}
+        color="#FFFFFF"
+        size="medium"
       />
 
-      <Button
-        mode="outlined"
+      <TouchableOpacity
         onPress={handleLogout}
         style={styles.logoutButton}
-        contentStyle={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+        activeOpacity={0.7}
       >
-        Sair
-      </Button>
+        <RNText style={styles.logoutText}>Sair</RNText>
+      </TouchableOpacity>
+
+      <PlacaScanner
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onPlacaDetected={async (placa) => {
+          // Verificar se veículo existe
+          const veiculo = veiculosCadastrados.find(v => v.placa === placa);
+          if (veiculo) {
+            if (scannerMode === 'entrada') {
+              await handleEntrada(placa);
+            } else {
+              // Para saída, precisamos encontrar o veículo estacionado
+              const veiculoEstacionado = veiculosEstacionados.find(v => v.placa === placa);
+              if (veiculoEstacionado) {
+                handleSaida(veiculoEstacionado);
+              } else {
+                alert('Este veículo não está estacionado no momento.');
+              }
+            }
+          } else {
+            // Veículo não cadastrado - perguntar se quer cadastrar
+            Alert.alert(
+              'Veículo não encontrado',
+              `A placa ${placa} não está cadastrada. Deseja cadastrar agora?`,
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                  text: 'Cadastrar',
+                  onPress: () => {
+                    setFormData({ ...formData, placa });
+                    setVisible(true);
+                  }
+                }
+              ]
+            );
+          }
+        }}
+        mode={scannerMode}
+      />
     </View>
   );
 }
@@ -610,42 +623,170 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   welcomeCard: {
-    margin: 16,
-    borderRadius: 0,
-    borderWidth: 0,
-    shadowColor: 'transparent',
-    backgroundColor: 'transparent',
+    margin: theme.spacing.md,
+    borderRadius: theme.roundness - 2,
+    overflow: 'hidden',
+    ...theme.shadows.large,
+  },
+  welcomeContent: {
+    padding: theme.spacing.lg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.spacing.md,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  welcomeSubtitle: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  settingsButton: {
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
   section: {
     padding: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
   sectionTitle: {
     marginBottom: 16,
   },
+  manageButton: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: 8,
+    backgroundColor: theme.colors.primary + '15',
+  },
+  manageButtonText: {
+    color: theme.colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
+  },
   card: {
-    marginBottom: 16,
-    elevation: 2,
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.roundness - 2,
+    ...theme.shadows.medium,
+    overflow: 'hidden',
+  },
+  veiculoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: theme.spacing.md,
+  },
+  veiculoInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  veiculoIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: theme.colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.spacing.md,
+  },
+  veiculoPlaca: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  veiculoTipo: {
+    fontSize: 12,
+    color: theme.colors.text,
+    opacity: 0.6,
+    textTransform: 'capitalize',
+  },
+  timerBadge: {
+    backgroundColor: theme.colors.warning + '20',
+    borderRadius: 8,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.warning,
+  },
+  timerText: {
+    fontWeight: '700',
+    color: theme.colors.warning,
+    fontSize: 12,
+  },
+  veiculoDetails: {
+    marginBottom: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.backgroundSecondary,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: theme.spacing.xs,
+  },
+  detailLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginRight: theme.spacing.sm,
+    width: 70,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: theme.colors.text,
+    opacity: 0.8,
+    flex: 1,
   },
   emptyCard: {
-    marginBottom: 16,
-    elevation: 2,
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.roundness - 2,
     backgroundColor: theme.colors.surface,
+    ...theme.shadows.small,
   },
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
     color: theme.colors.text,
     lineHeight: 24,
+    fontWeight: '500',
+    marginBottom: theme.spacing.xs,
+  },
+  emptySubtext: {
+    textAlign: 'center',
+    fontSize: 14,
+    color: theme.colors.text,
+    opacity: 0.6,
   },
   errorCard: {
-    margin: 16,
-    elevation: 2,
+    margin: theme.spacing.md,
+    borderRadius: theme.roundness - 2,
     backgroundColor: theme.colors.error + '10',
+    ...theme.shadows.small,
   },
   errorText: {
     color: theme.colors.error,
@@ -657,44 +798,84 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 10,
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.roundness - 2,
+    ...theme.shadows.small,
+  },
+  entradaButton: {
+    backgroundColor: theme.colors.success,
+  },
+  saidaButton: {
+    backgroundColor: theme.colors.error,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+    marginLeft: theme.spacing.xs,
   },
   button: {
     marginHorizontal: 5,
   },
   fab: {
     position: 'absolute',
-    margin: 16,
+    margin: theme.spacing.md,
     right: 0,
-    bottom: 60,
+    bottom: 70,
+    backgroundColor: theme.colors.accent,
+    ...theme.shadows.medium,
   },
   modal: {
-    backgroundColor: 'white',
-    padding: 20,
-    margin: 20,
-    borderRadius: 10,
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.lg,
+    margin: theme.spacing.md,
+    borderRadius: theme.roundness - 2,
+    ...theme.shadows.large,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
   },
   modalTitle: {
     marginBottom: 20,
     textAlign: 'center',
   },
+  modalScrollView: {
+    maxHeight: 400,
+    marginBottom: theme.spacing.md,
+  },
+  veiculoCardModal: {
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.roundness - 2,
+    ...theme.shadows.small,
+  },
   input: {
     marginBottom: 15,
   },
   logoutButton: {
-    margin: 16,
-    marginTop: 'auto',
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  configItem: {
-    marginBottom: 20,
-    padding: 15,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 8,
-  },
-  configTitle: {
-    marginBottom: 10,
-    textTransform: 'capitalize',
+  logoutText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.text,
+    opacity: 0.6,
+    letterSpacing: 0.3,
   },
   saidaText: {
     fontSize: 24,
@@ -702,17 +883,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontWeight: 'bold',
   },
-  pickerButton: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 4,
-    marginBottom: 15,
-  },
   pickerModal: {
     backgroundColor: 'white',
     margin: 20,
     borderRadius: 10,
-  },
-  configList: {
-    marginTop: 20,
   },
 }); 

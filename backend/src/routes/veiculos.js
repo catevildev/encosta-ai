@@ -136,6 +136,56 @@ router.get('/', authMiddleware, async (req, res) => {
 
 /**
  * @swagger
+ * /api/veiculos/estacionados:
+ *   get:
+ *     summary: Listar veículos atualmente estacionados
+ *     tags: [Veículos]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de veículos estacionados
+ *       401:
+ *         description: Não autorizado
+ *       500:
+ *         description: Erro ao listar veículos estacionados
+ */
+router.get('/estacionados', authMiddleware, async (req, res) => {
+  try {
+    let query = `
+      SELECT 
+        v.*,
+        e.nome as empresa_nome,
+        r.id as registro_entrada_id,
+        r.data_hora as data_entrada,
+        TIMESTAMPDIFF(SECOND, r.data_hora, NOW()) as tempo_estacionado_segundos
+      FROM veiculos v
+      JOIN empresas e ON v.empresa_id = e.id
+      JOIN registros r ON r.veiculo_id = v.id AND r.tipo = 'entrada'
+      LEFT JOIN registros s ON s.veiculo_id = v.id 
+        AND s.tipo = 'saida' 
+        AND s.data_hora > r.data_hora
+      WHERE s.id IS NULL
+    `;
+    let params = [];
+
+    if (req.user.tipo !== 'admin') {
+      query += ' AND v.empresa_id = ?';
+      params.push(req.user.id);
+    }
+
+    query += ' ORDER BY r.data_hora DESC';
+
+    const [veiculos] = await pool.query(query, params);
+    res.json(veiculos);
+  } catch (error) {
+    console.error('Erro ao listar veículos estacionados:', error);
+    res.status(500).json({ message: 'Erro ao listar veículos estacionados' });
+  }
+});
+
+/**
+ * @swagger
  * /api/veiculos/{id}:
  *   get:
  *     summary: Obter detalhes de um veículo
