@@ -45,7 +45,7 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: 'Token não fornecido' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'gatossauro');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'change_this_secret_key');
     req.user = decoded;
     next();
   } catch (error) {

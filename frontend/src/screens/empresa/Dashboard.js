@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Clipboard, Animated, TouchableOpacity, Text as RNText, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Clipboard, TouchableOpacity, Text as RNText, Alert } from 'react-native';
 import { Button, Card, Title, Paragraph, FAB, Portal, Modal, TextInput, Text, DataTable, IconButton, Menu, RadioButton, List } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
@@ -14,14 +14,15 @@ import PlacaScanner from '../../components/PlacaScanner';
 
 export default function EmpresaDashboard({ navigation }) {
   const { user, signOut } = useAuth();
-  const [veiculosEstacionados, setVeiculosEstacionados] = useState([]);
+  const [vagas, setVagas] = useState([]);
   const [veiculosCadastrados, setVeiculosCadastrados] = useState([]);
-  const [registros, setRegistros] = useState([]);
   const [visible, setVisible] = useState(false);
   const [veiculosModal, setVeiculosModal] = useState(false);
   const [saidaModal, setSaidaModal] = useState(false);
   const [scannerVisible, setScannerVisible] = useState(false);
   const [scannerMode, setScannerMode] = useState('entrada');
+  const [vagaSelecionada, setVagaSelecionada] = useState(null);
+  const [vagaModalVisible, setVagaModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [senhaSaida, setSenhaSaida] = useState('');
@@ -34,39 +35,23 @@ export default function EmpresaDashboard({ navigation }) {
   });
   const [showPicker, setShowPicker] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     loadData();
     const interval = setInterval(() => setNow(Date.now()), 1000);
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-    ]).start();
     return () => clearInterval(interval);
   }, []);
 
   async function loadData() {
     try {
       setError('');
-      const [veiculosEstacionadosResponse, veiculosCadastradosResponse, registrosResponse] = await Promise.all([
-        axios.get(`${api.baseURL}/api/veiculos/estacionados`),
+      const [vagasResponse, veiculosCadastradosResponse] = await Promise.all([
+        axios.get(`${api.baseURL}/api/vagas`),
         axios.get(`${api.baseURL}/api/veiculos`),
-        axios.get(`${api.baseURL}/api/registros`),
       ]);
-      setVeiculosEstacionados(veiculosEstacionadosResponse.data);
+      
+      setVagas(vagasResponse.data);
       setVeiculosCadastrados(veiculosCadastradosResponse.data);
-      setRegistros(registrosResponse.data);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       if (error.message === 'Network Error') {
@@ -76,6 +61,84 @@ export default function EmpresaDashboard({ navigation }) {
       }
     }
   }
+  
+  function getVagaColor(status) {
+    switch (status) {
+      case 'disponivel':
+        return '#10B981'; // Verde
+      case 'estacionado':
+        return '#F59E0B'; // Laranja
+      case 'pagando':
+        return '#3B82F6'; // Azul
+      case 'indisponivel':
+      case 'manutencao':
+        return '#9CA3AF'; // Cinza
+      default:
+        return '#9CA3AF';
+    }
+  }
+  
+  function getVagaStatusText(status) {
+    switch (status) {
+      case 'disponivel':
+        return 'Disponível';
+      case 'estacionado':
+        return 'Estacionado';
+      case 'pagando':
+        return 'Pagando';
+      case 'indisponivel':
+        return 'Indisponível';
+      case 'manutencao':
+        return 'Manutenção';
+      default:
+        return status;
+    }
+  }
+  
+  function formatTimer(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  
+  const [vagaParaEntrada, setVagaParaEntrada] = useState(null);
+
+  function handleVagaPress(vaga) {
+    if (vaga.status === 'estacionado') {
+      // Navegar para tela de cronômetro
+      navigation.navigate('Cronometro', { vaga });
+    } else if (vaga.status === 'pagando') {
+      // Navegar para tela de pagamento
+      navigation.navigate('Pagamento', { vaga });
+    } else if (vaga.status === 'disponivel') {
+      // Navegar para tela de seleção de tempo
+      navigation.navigate('SelecionarTempo', { vaga });
+    } else if (vaga.status === 'indisponivel' || vaga.status === 'manutencao') {
+      // Mostrar opção para marcar como disponível
+      Alert.alert(
+        'Vaga Indisponível',
+        'Deseja marcar esta vaga como disponível?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Marcar como Disponível',
+            onPress: async () => {
+              try {
+                await axios.put(`${api.baseURL}/api/vagas/${vaga.id}/status`, { status: 'disponivel' });
+                loadData();
+              } catch (error) {
+                console.error('Erro ao atualizar status:', error);
+                alert('Erro ao atualizar status da vaga');
+              }
+            }
+          }
+        ]
+      );
+    }
+  }
+
 
   async function handleSubmit() {
     setLoading(true);
@@ -102,21 +165,28 @@ export default function EmpresaDashboard({ navigation }) {
     }
   }
 
-  async function handleEntrada(placa) {
+  async function handleEntrada(placa, vagaId = null) {
     try {
       setError('');
-      // Buscar veículo cadastrado pela placa
-      const veiculo = veiculosCadastrados.find(v => v.placa === placa);
-      if (!veiculo) {
-        alert('Veículo não encontrado. Por favor, cadastre o veículo primeiro.');
-        return;
+      
+      // Registrar entrada (cria veículo automaticamente se não existir)
+      const entradaResponse = await axios.post(`${api.baseURL}/api/registros/entrada`, {
+        placa: placa,
+        tipo: 'carro' // Tipo padrão quando não especificado
+      });
+      
+      const veiculoId = entradaResponse.data.veiculo?.id;
+      
+      // Se houver vaga selecionada, ocupar a vaga
+      if (vagaId && entradaResponse.data.registro_id && veiculoId) {
+        await axios.post(`${api.baseURL}/api/vagas/${vagaId}/ocupar`, {
+          veiculo_id: veiculoId,
+          registro_entrada_id: entradaResponse.data.registro_id
+        });
       }
       
-      await axios.post(`${api.baseURL}/api/registros/entrada`, {
-        placa: veiculo.placa,
-        tipo: veiculo.tipo
-      });
       loadData();
+      setVagaParaEntrada(null);
       alert('Entrada registrada com sucesso!');
     } catch (error) {
       console.error('Erro ao registrar entrada:', error);
@@ -143,6 +213,12 @@ export default function EmpresaDashboard({ navigation }) {
         placa: veiculoSaida.placa,
         senha: senhaSaida,
       });
+
+      // Liberar a vaga associada ao veículo
+      const vagaOcupada = vagas.find(v => v.veiculo_id === veiculoSaida.id && (v.status === 'estacionado' || v.status === 'pagando'));
+      if (vagaOcupada) {
+        await axios.post(`${api.baseURL}/api/vagas/${vagaOcupada.id}/liberar`);
+      }
 
       setSaidaModal(false);
       setSenhaSaida('');
@@ -191,42 +267,39 @@ export default function EmpresaDashboard({ navigation }) {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Animated.View
-          style={[
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
+        <LinearGradient
+          colors={[theme.colors.primary, theme.colors.accent]}
+          style={styles.welcomeCard}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
-          <LinearGradient
-            colors={[theme.colors.primary, theme.colors.accent]}
-            style={styles.welcomeCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Card.Content style={styles.welcomeContent}>
-              <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                  <View style={styles.iconWrapper}>
-                    <SquareParking size={24} color="#FFFFFF" />
-                  </View>
-                  <View>
-                    <Title style={styles.welcomeTitle}>Bem-vindo, {user?.nome || ''}!</Title>
-                    <Paragraph style={styles.welcomeSubtitle}>Gerencie seu estacionamento</Paragraph>
-                  </View>
+          <Card.Content style={styles.welcomeContent}>
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <View style={styles.iconWrapper}>
+                  <SquareParking size={24} color="#FFFFFF" />
                 </View>
-                <TouchableOpacity
-                  onPress={handleConfigValores}
-                  style={styles.settingsButton}
-                >
-                  <IconButton
-                    icon="cog"
-                    size={24}
-                    iconColor="#FFFFFF"
-                  />
-                </TouchableOpacity>
+                <View style={{ width: '80%', paddingRight: 10 }}>
+                  <Title style={styles.welcomeTitle}>Bem-vindo, {user?.nome || ''}!</Title>
+                  <Paragraph style={styles.welcomeSubtitle}>Gerencie seu estacionamento</Paragraph>
+                </View>
               </View>
-            </Card.Content>
-          </LinearGradient>
-        </Animated.View>
+            </View>
+          </Card.Content>
+        </LinearGradient>
+
+        <View style={styles.configButtonContainer}>
+          <Button
+            mode="contained"
+            onPress={handleConfigValores}
+            icon="cog"
+            style={styles.configButton}
+            contentStyle={styles.configButtonContent}
+            labelStyle={styles.configButtonLabel}
+          >
+            Configurar Valores
+          </Button>
+        </View>
 
         {error ? (
           <Card style={styles.errorCard}>
@@ -242,137 +315,92 @@ export default function EmpresaDashboard({ navigation }) {
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <Car size={20} color={theme.colors.text} style={{ marginRight: 6}} />
-                  <Title style={[styles.sectionTitle, { marginBottom: 0 }]}>Veículos Estacionados</Title>
+                  <SquareParking size={20} color={theme.colors.text} style={{ marginRight: 6}} />
+                  <Title style={[styles.sectionTitle, { marginBottom: 0 }]}>Vagas de Estacionamento</Title>
                 </View>
-                <TouchableOpacity
-                  onPress={() => setVeiculosModal(true)}
-                  style={styles.manageButton}
-                >
-                  <Text style={styles.manageButtonText}>Gerenciar</Text>
-                </TouchableOpacity>
               </View>
-              {veiculosEstacionados.length === 0 ? (
+              
+              {vagas.length === 0 ? (
                 <Card style={styles.emptyCard}>
                   <Card.Content>
                     <Text style={styles.emptyText}>
-                      Nenhum veículo estacionado no momento.
+                      Nenhuma vaga configurada.
                     </Text>
                     <Text style={styles.emptySubtext}>
-                      Registre uma entrada para começar.
+                      As vagas serão criadas automaticamente.
                     </Text>
                   </Card.Content>
                 </Card>
               ) : (
-                veiculosEstacionados.map((veiculo, index) => {
-                  // Calcular timer baseado na data_entrada
-                  let timer = '';
-                  if (veiculo.data_entrada) {
-                    const diffMs = now - new Date(veiculo.data_entrada).getTime();
-                    const diffH = Math.floor(diffMs / 3600000);
-                    const diffM = Math.floor((diffMs % 3600000) / 60000);
-                    const diffS = Math.floor((diffMs % 60000) / 1000);
-                    timer = `${diffH}h ${diffM}m ${diffS}s`;
-                  }
-                  return (
-                    <Animated.View
-                      key={veiculo.id}
-                      style={[
-                        {
-                          opacity: fadeAnim,
-                          transform: [
-                            {
-                              translateY: slideAnim.interpolate({
-                                inputRange: [0, 30],
-                                outputRange: [0, 30 + index * 10],
-                              }),
-                            },
-                          ],
-                        },
-                      ]}
-                    >
-                      <Card style={styles.card}>
-                        <Card.Content>
-                          <View style={styles.veiculoHeader}>
-                            <View style={styles.veiculoInfo}>
-                              <View style={styles.veiculoIcon}>
-                                <Car size={24} color={theme.colors.primary} />
-                              </View>
-                              <View>
-                                <Title style={styles.veiculoPlaca}>{veiculo.placa}</Title>
-                                <Text style={styles.veiculoTipo}>{veiculo.tipo}</Text>
-                              </View>
-                            </View>
-                            {timer && (
-                              <View style={styles.timerBadge}>
-                                <Text style={styles.timerText}>{timer}</Text>
-                              </View>
+                <View style={styles.vagasGrid}>
+                  {vagas.map((vaga) => {
+                    const vagaColor = getVagaColor(vaga.status);
+                    const tempoEstacionado = vaga.data_entrada 
+                      ? now - new Date(vaga.data_entrada).getTime() 
+                      : 0;
+                    
+                    return (
+                      <TouchableOpacity
+                        key={vaga.id}
+                        onPress={() => handleVagaPress(vaga)}
+                        onLongPress={() => {
+                          if (vaga.status === 'disponivel') {
+                            Alert.alert(
+                              'Opções da Vaga',
+                              'Escolha uma opção',
+                              [
+                                { text: 'Cancelar', style: 'cancel' },
+                                {
+                                  text: 'Marcar como Indisponível',
+                                  onPress: async () => {
+                                    try {
+                                      await axios.put(`${api.baseURL}/api/vagas/${vaga.id}/status`, { status: 'indisponivel' });
+                                      loadData();
+                                    } catch (error) {
+                                      console.error('Erro ao atualizar status:', error);
+                                      alert('Erro ao atualizar status da vaga');
+                                    }
+                                  }
+                                }
+                              ]
+                            );
+                          }
+                        }}
+                        style={[styles.vagaCard, { borderLeftColor: vagaColor, borderLeftWidth: 4 }]}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.vagaHeader}>
+                          <Text style={styles.vagaNumero}>Vaga {vaga.numero}</Text>
+                          <View style={[styles.vagaStatusBadge, { backgroundColor: vagaColor + '20' }]}>
+                            <Text style={[styles.vagaStatusText, { color: vagaColor }]}>
+                              {getVagaStatusText(vaga.status)}
+                            </Text>
+                          </View>
+                        </View>
+                        {vaga.status === 'estacionado' && vaga.placa && (
+                          <View style={styles.vagaInfo}>
+                            <Text style={styles.vagaPlaca}>{vaga.placa}</Text>
+                            {vaga.data_entrada && (
+                              <Text style={styles.vagaTimer}>
+                                {formatTimer(tempoEstacionado)}
+                              </Text>
                             )}
                           </View>
-                          <View style={styles.veiculoDetails}>
-                            <View style={styles.detailRow}>
-                              <Text style={styles.detailLabel}>Modelo:</Text>
-                              <Text style={styles.detailValue}>{veiculo.modelo}</Text>
-                            </View>
-                            <View style={styles.detailRow}>
-                              <Text style={styles.detailLabel}>Cor:</Text>
-                              <Text style={styles.detailValue}>{veiculo.cor}</Text>
-                            </View>
+                        )}
+                        {vaga.status === 'pagando' && vaga.placa && (
+                          <View style={styles.vagaInfo}>
+                            <Text style={styles.vagaPlaca}>{vaga.placa}</Text>
+                            {vaga.data_entrada && (
+                              <Text style={styles.vagaTimer}>
+                                {formatTimer(tempoEstacionado)}
+                              </Text>
+                            )}
                           </View>
-                          <View style={styles.buttonContainer}>
-                            <TouchableOpacity
-                              onPress={() => handleSaida(veiculo)}
-                              style={[styles.actionButton, styles.saidaButton, { flex: 1 }]}
-                            >
-                              <Feather name="arrow-up-circle" size={20} color="#FFFFFF" />
-                              <Text style={styles.actionButtonText}>Registrar Saída</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </Card.Content>
-                      </Card>
-                    </Animated.View>
-                  );
-                })
-              )}
-            </View>
-
-            <View style={styles.section}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <ListIcon size={20} color={theme.colors.text} style={{ marginRight: 6, marginTop: 2 }} />
-                <Title style={[styles.sectionTitle, { marginBottom: 0 }]}>Últimos Registros</Title>
-              </View>
-              {registros.length === 0 ? (
-                <Card style={styles.emptyCard}>
-                  <Card.Content>
-                    <Text style={styles.emptyText}>
-                      Nenhum registro encontrado.
-                    </Text>
-                  </Card.Content>
-                </Card>
-              ) : (
-                <DataTable>
-                  <DataTable.Header>
-                    <DataTable.Title>Veículo</DataTable.Title>
-                    <DataTable.Title>Tipo</DataTable.Title>
-                    <DataTable.Title>Data/Hora</DataTable.Title>
-                    <DataTable.Title numeric>Valor</DataTable.Title>
-                  </DataTable.Header>
-
-                  {registros.slice(0, 5).map((registro) => (
-                    <DataTable.Row key={registro.id}>
-                      <DataTable.Cell>{registro.placa}</DataTable.Cell>
-                      <DataTable.Cell>{registro.tipo}</DataTable.Cell>
-                      <DataTable.Cell>
-                        {format(new Date(registro.data_hora), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                      </DataTable.Cell>
-                      <DataTable.Cell numeric>
-                        {registro.valor !== undefined && registro.valor !== null && !isNaN(Number(registro.valor))
-                          ? `R$ ${Number(registro.valor).toFixed(2)}`
-                          : '-'}
-                      </DataTable.Cell>
-                    </DataTable.Row>
-                  ))}
-                </DataTable>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               )}
             </View>
           </>
@@ -528,9 +556,15 @@ export default function EmpresaDashboard({ navigation }) {
                       </View>
                     </View>
                     <TouchableOpacity
-                      onPress={() => {
-                        handleEntrada(veiculo.placa);
-                        setVeiculosModal(false);
+                      onPress={async () => {
+                        // Encontrar primeira vaga disponível
+                        const vagaDisponivel = vagas.find(v => v.status === 'disponivel');
+                        if (vagaDisponivel) {
+                          await handleEntrada(veiculo.placa, vagaDisponivel.id);
+                          setVeiculosModal(false);
+                        } else {
+                          alert('Não há vagas disponíveis no momento.');
+                        }
                       }}
                       style={[styles.actionButton, styles.entradaButton]}
                     >
@@ -554,6 +588,7 @@ export default function EmpresaDashboard({ navigation }) {
             Cadastrar Novo Veículo
           </Button>
         </Modal>
+
       </Portal>
 
       <FAB
@@ -577,38 +612,37 @@ export default function EmpresaDashboard({ navigation }) {
 
       <PlacaScanner
         visible={scannerVisible}
-        onClose={() => setScannerVisible(false)}
+        onClose={() => {
+          setScannerVisible(false);
+          setVagaParaEntrada(null);
+        }}
         onPlacaDetected={async (placa) => {
           // Verificar se veículo existe
           const veiculo = veiculosCadastrados.find(v => v.placa === placa);
           if (veiculo) {
             if (scannerMode === 'entrada') {
-              await handleEntrada(placa);
+              await handleEntrada(placa, vagaParaEntrada?.id);
+              setVagaParaEntrada(null);
             } else {
-              // Para saída, precisamos encontrar o veículo estacionado
-              const veiculoEstacionado = veiculosEstacionados.find(v => v.placa === placa);
-              if (veiculoEstacionado) {
+              // Para saída, precisamos encontrar a vaga ocupada pelo veículo
+              const vagaOcupada = vagas.find(v => v.placa === placa && (v.status === 'estacionado' || v.status === 'pagando'));
+              if (vagaOcupada) {
+                const veiculoEstacionado = {
+                  id: vagaOcupada.veiculo_id,
+                  placa: vagaOcupada.placa,
+                  modelo: vagaOcupada.modelo,
+                  cor: vagaOcupada.cor,
+                  tipo: vagaOcupada.tipo_veiculo
+                };
                 handleSaida(veiculoEstacionado);
               } else {
                 alert('Este veículo não está estacionado no momento.');
               }
             }
           } else {
-            // Veículo não cadastrado - perguntar se quer cadastrar
-            Alert.alert(
-              'Veículo não encontrado',
-              `A placa ${placa} não está cadastrada. Deseja cadastrar agora?`,
-              [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                  text: 'Cadastrar',
-                  onPress: () => {
-                    setFormData({ ...formData, placa });
-                    setVisible(true);
-                  }
-                }
-              ]
-            );
+            // Veículo não cadastrado - fechar scanner silenciosamente
+            // O usuário deve usar o fluxo de entrada através da vaga
+            setScannerVisible(false);
           }
         }}
         mode={scannerMode}
@@ -633,13 +667,29 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+  },
+  configButtonContainer: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+  },
+  configButton: {
+    borderRadius: theme.roundness - 2,
+    ...theme.shadows.small,
+  },
+  configButtonContent: {
+    paddingVertical: theme.spacing.xs,
+  },
+  configButtonLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   iconWrapper: {
     width: 48,
@@ -654,16 +704,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 4
   },
   welcomeSubtitle: {
     fontSize: 14,
     color: '#FFFFFF',
     opacity: 0.9,
-  },
-  settingsButton: {
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   section: {
     padding: 16,
@@ -826,6 +872,114 @@ const styles = StyleSheet.create({
   button: {
     marginHorizontal: 5,
   },
+  vagasGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  vagaCard: {
+    width: '48%',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.roundness - 2,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    ...theme.shadows.small,
+  },
+  vagaHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xs,
+  },
+  vagaNumero: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  vagaStatusBadge: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  vagaStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  vagaInfo: {
+    marginTop: theme.spacing.xs,
+  },
+  vagaPlaca: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  vagaTimer: {
+    fontSize: 12,
+    color: theme.colors.text,
+    opacity: 0.7,
+  },
+  vagaModal: {
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.lg,
+    margin: theme.spacing.md,
+    borderRadius: theme.roundness - 2,
+    ...theme.shadows.large,
+  },
+  vagaModalTitle: {
+    textAlign: 'center',
+    marginBottom: theme.spacing.lg,
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  timerContainer: {
+    alignItems: 'center',
+    marginVertical: theme.spacing.xl,
+  },
+  timerCircle: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: theme.colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 8,
+    borderColor: theme.colors.primary,
+  },
+  timerText: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: theme.colors.primary,
+    fontFamily: 'monospace',
+    letterSpacing: 2,
+  },
+  vagaInfoCard: {
+    marginBottom: theme.spacing.lg,
+    ...theme.shadows.small,
+  },
+  vagaInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  vagaInfoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    opacity: 0.7,
+  },
+  vagaInfoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  vagaModalButton: {
+    marginTop: theme.spacing.sm,
+    borderRadius: theme.roundness - 2,
+  },
   fab: {
     position: 'absolute',
     margin: theme.spacing.md,
@@ -887,5 +1041,123 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     margin: 20,
     borderRadius: 10,
+  },
+  vagasGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  vagaCard: {
+    width: '48%',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.roundness - 2,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    ...theme.shadows.small,
+  },
+  vagaHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xs,
+  },
+  vagaNumero: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  vagaInfo: {
+    marginTop: theme.spacing.xs,
+  },
+  vagaPlaca: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  vagaTimer: {
+    fontSize: 12,
+    color: theme.colors.text,
+    opacity: 0.7,
+  },
+  vagaModal: {
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.lg,
+    margin: theme.spacing.md,
+    borderRadius: theme.roundness - 2,
+    ...theme.shadows.large,
+  },
+  vagaModalTitle: {
+    textAlign: 'center',
+    marginBottom: theme.spacing.lg,
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  timerContainer: {
+    alignItems: 'center',
+    marginVertical: theme.spacing.xl,
+  },
+  timerCircle: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: theme.colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 8,
+    borderColor: theme.colors.primary,
+  },
+  timerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: theme.spacing.xs,
+  },
+  vagaInfoCard: {
+    marginBottom: theme.spacing.lg,
+    ...theme.shadows.small,
+  },
+  vagaInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  vagaInfoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    opacity: 0.7,
+  },
+  vagaInfoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  vagaModalButton: {
+    marginTop: theme.spacing.sm,
+    borderRadius: theme.roundness - 2,
+  },
+  modalSubtitle: {
+    textAlign: 'center',
+    marginBottom: theme.spacing.lg,
+    fontSize: 16,
+    color: theme.colors.text,
+    opacity: 0.7,
+  },
+  tempoOption: {
+    backgroundColor: theme.colors.backgroundSecondary,
+    padding: theme.spacing.md,
+    borderRadius: theme.roundness - 2,
+    marginBottom: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '30',
+  },
+  tempoOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    textAlign: 'center',
   },
 }); 

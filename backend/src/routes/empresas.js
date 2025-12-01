@@ -52,7 +52,7 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: 'Token não fornecido' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'gatossauro');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'change_this_secret_key');
     req.user = decoded;
     next();
   } catch (error) {
@@ -101,7 +101,20 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
       [nome, cnpj, email, senhaHash, telefone, endereco]
     );
 
-    res.status(201).json({ id: result.insertId, nome, email, cnpj });
+    const empresaId = result.insertId;
+
+    // Inicializar 20 vagas padrão para a nova empresa
+    const vagas = [];
+    for (let i = 1; i <= 20; i++) {
+      vagas.push([empresaId, i, 'disponivel']);
+    }
+    
+    await pool.query(
+      'INSERT INTO vagas (empresa_id, numero, status) VALUES ?',
+      [vagas]
+    );
+
+    res.status(201).json({ id: empresaId, nome, email, cnpj });
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ message: 'Email ou CNPJ já cadastrado' });
@@ -134,7 +147,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
  */
 router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const [empresas] = await pool.query('SELECT id, nome, cnpj, email, telefone, endereco, created_at FROM empresas');
+    const [empresas] = await pool.query('SELECT id, nome, cnpj, email, telefone, endereco, total_vagas, created_at FROM empresas');
     res.json(empresas);
   } catch (error) {
     res.status(500).json({ message: 'Erro ao listar empresas' });
@@ -173,7 +186,7 @@ router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const [empresas] = await pool.query(
-      'SELECT id, nome, cnpj, email, telefone, endereco, created_at FROM empresas WHERE id = ?',
+      'SELECT id, nome, cnpj, email, telefone, endereco, total_vagas, created_at FROM empresas WHERE id = ?',
       [req.params.id]
     );
 
@@ -229,7 +242,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
  */
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { nome, telefone, endereco } = req.body;
+    const { nome, telefone, endereco, total_vagas } = req.body;
     const empresaId = req.params.id;
 
     // Verificar se é admin ou a própria empresa
@@ -237,13 +250,91 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'Acesso negado' });
     }
 
-    await pool.query(
-      'UPDATE empresas SET nome = ?, telefone = ?, endereco = ? WHERE id = ?',
-      [nome, telefone, endereco, empresaId]
-    );
+    // Apenas admin pode alterar total_vagas
+    if (total_vagas !== undefined && req.user.tipo !== 'admin') {
+      return res.status(403).json({ message: 'Apenas administradores podem alterar a quantidade de vagas' });
+    }
 
-    res.json({ message: 'Empresa atualizada com sucesso' });
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Obter total_vagas atual
+      const [empresas] = await connection.query(
+        'SELECT total_vagas FROM empresas WHERE id = ?',
+        [empresaId]
+      );
+
+      if (empresas.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ message: 'Empresa não encontrada' });
+      }
+
+      const totalVagasAtual = empresas[0].total_vagas || 20;
+      const novoTotalVagas = total_vagas !== undefined ? parseInt(total_vagas) : totalVagasAtual;
+
+      // Atualizar empresa
+      if (total_vagas !== undefined) {
+        await connection.query(
+          'UPDATE empresas SET nome = ?, telefone = ?, endereco = ?, total_vagas = ? WHERE id = ?',
+          [nome, telefone, endereco, novoTotalVagas, empresaId]
+        );
+      } else {
+        await connection.query(
+          'UPDATE empresas SET nome = ?, telefone = ?, endereco = ? WHERE id = ?',
+          [nome, telefone, endereco, empresaId]
+        );
+      }
+
+      // Se total_vagas foi alterado e é admin, ajustar vagas
+      if (total_vagas !== undefined && req.user.tipo === 'admin' && novoTotalVagas !== totalVagasAtual) {
+        // Contar vagas existentes
+        const [vagasCount] = await connection.query(
+          'SELECT COUNT(*) as count FROM vagas WHERE empresa_id = ?',
+          [empresaId]
+        );
+        const vagasExistentes = vagasCount[0].count;
+
+        if (novoTotalVagas > vagasExistentes) {
+          // Adicionar novas vagas
+          const vagasParaAdicionar = novoTotalVagas - vagasExistentes;
+          const novasVagas = [];
+          for (let i = vagasExistentes + 1; i <= novoTotalVagas; i++) {
+            novasVagas.push([empresaId, i, 'disponivel']);
+          }
+          await connection.query(
+            'INSERT INTO vagas (empresa_id, numero, status) VALUES ?',
+            [novasVagas]
+          );
+        } else if (novoTotalVagas < vagasExistentes) {
+          // Remover vagas extras (apenas as disponíveis)
+          const vagasParaRemover = vagasExistentes - novoTotalVagas;
+          const [vagasDisponiveis] = await connection.query(
+            'SELECT id FROM vagas WHERE empresa_id = ? AND status = "disponivel" ORDER BY numero DESC LIMIT ?',
+            [empresaId, vagasParaRemover]
+          );
+          
+          if (vagasDisponiveis.length > 0) {
+            const idsParaRemover = vagasDisponiveis.map(v => v.id);
+            const placeholders = idsParaRemover.map(() => '?').join(',');
+            await connection.query(
+              `DELETE FROM vagas WHERE id IN (${placeholders})`,
+              idsParaRemover
+            );
+          }
+        }
+      }
+
+      await connection.commit();
+      res.json({ message: 'Empresa atualizada com sucesso' });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   } catch (error) {
+    console.error('Erro ao atualizar empresa:', error);
     res.status(500).json({ message: 'Erro ao atualizar empresa' });
   }
 });

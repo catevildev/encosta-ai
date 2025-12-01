@@ -33,7 +33,12 @@ cd backend
 npm install
 ```
 
-3. Configure o arquivo .env com suas credenciais do MySQL:
+3. Configure o arquivo `.env` com suas credenciais do MySQL. Você pode copiar o arquivo `.env.example` e ajustar os valores:
+```bash
+cp .env.example .env
+```
+
+Edite o arquivo `.env` com suas configurações:
 ```
 PORT=3000
 DB_HOST=localhost
@@ -60,7 +65,19 @@ cd frontend
 npm install
 ```
 
-3. Inicie o aplicativo:
+3. Configure o arquivo `.env` com a URL da API do backend. Você pode copiar o arquivo `.env.example` e ajustar o valor:
+```bash
+cp .env.example .env
+```
+
+Edite o arquivo `.env` com a URL do seu backend:
+```
+API_URL=http://localhost:3000
+```
+
+**Nota:** Se estiver testando em um dispositivo físico, use o IP da sua máquina ao invés de `localhost` (ex: `http://192.168.1.100:3000`).
+
+4. Inicie o aplicativo:
 ```bash
 npm start
 ```

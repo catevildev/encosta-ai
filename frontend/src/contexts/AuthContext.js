@@ -43,10 +43,13 @@ export function AuthProvider({ children }) {
         throw new Error('Resposta inválida do servidor');
       }
 
-      setUser(userData);
+      // Adicionar o tipo ao userData para saber qual dashboard mostrar
+      const userWithType = { ...userData, tipo };
+
+      setUser(userWithType);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      await AsyncStorage.setItem('@EstacionaAI:user', JSON.stringify(userData));
+      await AsyncStorage.setItem('@EstacionaAI:user', JSON.stringify(userWithType));
       await AsyncStorage.setItem('@EstacionaAI:token', token);
 
       return userData;

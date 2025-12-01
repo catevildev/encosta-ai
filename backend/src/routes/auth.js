@@ -65,7 +65,7 @@ router.post('/admin/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: admin.id, tipo: 'admin' },
-      process.env.JWT_SECRET || 'gatossauro',
+      process.env.JWT_SECRET || 'change_this_secret_key',
       { expiresIn: '1d' }
     );
 
@@ -136,7 +136,7 @@ router.post('/empresa/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: empresa.id, tipo: 'empresa' },
-      process.env.JWT_SECRET || 'gatossauro',
+      process.env.JWT_SECRET || 'change_this_secret_key',
       { expiresIn: '1d' }
     );
 
@@ -155,7 +155,7 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: 'Token não fornecido' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'gatossauro');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'change_this_secret_key');
     req.user = decoded;
     next();
   } catch (error) {

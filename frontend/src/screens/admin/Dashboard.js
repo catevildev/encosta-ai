@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Clipboard, Animated, TouchableOpacity, Text as RNText } from 'react-native';
-import { Button, Card, Title, Paragraph, FAB, Portal, Modal, TextInput, Text, IconButton } from 'react-native-paper';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Clipboard, TouchableOpacity, Text as RNText } from 'react-native';
+import { Button, Card, Title, Paragraph, FAB, Portal, Modal, Text, IconButton } from 'react-native-paper';
+import Svg, { Path, G, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
@@ -10,38 +11,20 @@ import { api } from '../../config/api';
 export default function AdminDashboard({ navigation }) {
   const { user, signOut } = useAuth();
   const [empresas, setEmpresas] = useState([]);
-  const [visible, setVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [formData, setFormData] = useState({
-    nome: '',
-    cnpj: '',
-    email: '',
-    senha: '',
-    telefone: '',
-    endereco: '',
-  });
   const [resetPasswordModal, setResetPasswordModal] = useState(false);
   const [novaSenha, setNovaSenha] = useState('');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
     loadEmpresas();
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-    ]).start();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadEmpresas();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   async function loadEmpresas() {
     try {
@@ -55,33 +38,6 @@ export default function AdminDashboard({ navigation }) {
       } else {
         setError('Erro ao carregar empresas. Tente novamente mais tarde.');
       }
-    }
-  }
-
-  async function handleSubmit() {
-    setLoading(true);
-    setError('');
-    try {
-      await axios.post(`${api.baseURL}/api/empresas`, formData);
-      setVisible(false);
-      loadEmpresas();
-      setFormData({
-        nome: '',
-        cnpj: '',
-        email: '',
-        senha: '',
-        telefone: '',
-        endereco: '',
-      });
-    } catch (error) {
-      console.error('Erro ao cadastrar empresa:', error);
-      if (error.response?.data?.message) {
-        setError(error.response.data.message);
-      } else {
-        setError('Erro ao cadastrar empresa. Tente novamente.');
-      }
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -118,27 +74,22 @@ export default function AdminDashboard({ navigation }) {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Animated.View
-          style={[
-            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-          ]}
+        <LinearGradient
+          colors={[theme.colors.primary, theme.colors.accent]}
+          style={styles.welcomeCard}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
-          <LinearGradient
-            colors={[theme.colors.primary, theme.colors.accent]}
-            style={styles.welcomeCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Card.Content style={styles.welcomeContent}>
-              <Title style={styles.welcomeTitle}>Bem-vindo, {user?.nome || 'Administrador'}!</Title>
-              <Paragraph style={styles.welcomeSubtitle}>Gerencie suas empresas de estacionamento</Paragraph>
-            </Card.Content>
-          </LinearGradient>
-        </Animated.View>
+          <Card.Content style={styles.welcomeContent}>
+            <Title style={styles.welcomeTitle}>
+              Bem-vindo, {user?.nome || 'Administrador'}!</Title>
+            <Paragraph style={styles.welcomeSubtitle}>Gerencie suas empresas de estacionamento</Paragraph>
+          </Card.Content>
+        </LinearGradient>
 
         <View style={styles.empresasContainer}>
           <Title style={styles.sectionTitle}>Empresas Cadastradas</Title>
-          
+
           {error ? (
             <Card style={styles.errorCard}>
               <Card.Content>
@@ -149,40 +100,28 @@ export default function AdminDashboard({ navigation }) {
               </Card.Content>
             </Card>
           ) : empresas.length === 0 ? (
-            <Animated.View
-              style={[
-                { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-              ]}
-            >
-              <Card style={styles.emptyCard}>
-                <Card.Content style={styles.emptyContent}>
-                  <Text style={styles.emptyIcon}>🏢</Text>
-                  <Text style={styles.emptyText}>
-                    Nenhuma empresa cadastrada ainda.
-                  </Text>
-                  <Text style={styles.emptySubtext}>
-                    Clique no botão + para adicionar uma nova empresa.
-                  </Text>
-                </Card.Content>
-              </Card>
-            </Animated.View>
+            <Card style={styles.emptyCard}>
+              <Card.Content style={styles.emptyContent}>
+                <Svg width="48" height="48" viewBox="0 0 48 48" fill={theme.colors.primary}>
+                  <G fill="none" stroke={theme.colors.primary} stroke-linecap="round" stroke-linejoin="round" strokeWidth="3">
+                    <Path d="m17 14l27 10v20H17z" clip-rule="evenodd" />
+                    <Path d="M17 14L4 24v20h13m18 0V32l-9-3v15m18 0H17" />
+                  </G>
+                </Svg>
+                <Text style={styles.emptyText}>
+                  Nenhuma empresa cadastrada ainda
+                </Text>
+                <Text style={styles.emptySubtext}>
+                  Clique no botão + para adicionar
+                </Text>
+              </Card.Content>
+            </Card>
           ) : (
-            empresas.map((empresa, index) => (
-              <Animated.View
+            empresas.map((empresa) => (
+              <TouchableOpacity
                 key={empresa.id}
-                style={[
-                  {
-                    opacity: fadeAnim,
-                    transform: [
-                      {
-                        translateY: slideAnim.interpolate({
-                          inputRange: [0, 30],
-                          outputRange: [0, 30 + index * 10],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
+                onPress={() => navigation.navigate('EditarEmpresa', { empresa })}
+                activeOpacity={0.7}
               >
                 <Card style={styles.empresaCard}>
                   <Card.Content>
@@ -198,16 +137,34 @@ export default function AdminDashboard({ navigation }) {
                           <Text style={styles.empresaCnpj}>CNPJ: {empresa.cnpj}</Text>
                         </View>
                       </View>
-                      <TouchableOpacity
-                        onPress={() => handleResetPassword(empresa.id)}
-                        style={styles.resetButton}
-                      >
-                        <IconButton
-                          icon="key"
-                          size={20}
-                          iconColor={theme.colors.primary}
-                        />
-                      </TouchableOpacity>
+                      <View style={styles.buttonsContainer}>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            navigation.navigate('EditarEmpresa', { empresa });
+                          }}
+                          style={styles.editButton}
+                        >
+                          <IconButton
+                            icon="pencil"
+                            size={20}
+                            iconColor={theme.colors.primary}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleResetPassword(empresa.id);
+                          }}
+                          style={styles.resetButton}
+                        >
+                          <IconButton
+                            icon="key"
+                            size={20}
+                            iconColor={theme.colors.primary}
+                          />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                     <View style={styles.empresaData}>
                       <View style={styles.dataRow}>
@@ -221,74 +178,13 @@ export default function AdminDashboard({ navigation }) {
                     </View>
                   </Card.Content>
                 </Card>
-              </Animated.View>
+              </TouchableOpacity>
             ))
           )}
         </View>
       </ScrollView>
 
       <Portal>
-        <Modal
-          visible={visible}
-          onDismiss={() => setVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Title style={styles.modalTitle}>Cadastrar Nova Empresa</Title>
-          {error && <Text style={styles.errorText}>{error}</Text>}
-          <TextInput
-            label="Nome"
-            value={formData.nome}
-            onChangeText={(text) => setFormData({ ...formData, nome: text })}
-            mode="outlined"
-            style={styles.input}
-          />
-          <TextInput
-            label="CNPJ"
-            value={formData.cnpj}
-            onChangeText={(text) => setFormData({ ...formData, cnpj: text })}
-            mode="outlined"
-            style={styles.input}
-          />
-          <TextInput
-            label="Email"
-            value={formData.email}
-            onChangeText={(text) => setFormData({ ...formData, email: text })}
-            mode="outlined"
-            style={styles.input}
-            keyboardType="email-address"
-          />
-          <TextInput
-            label="Senha"
-            value={formData.senha}
-            onChangeText={(text) => setFormData({ ...formData, senha: text })}
-            mode="outlined"
-            style={styles.input}
-            secureTextEntry
-          />
-          <TextInput
-            label="Telefone"
-            value={formData.telefone}
-            onChangeText={(text) => setFormData({ ...formData, telefone: text })}
-            mode="outlined"
-            style={styles.input}
-          />
-          <TextInput
-            label="Endereço"
-            value={formData.endereco}
-            onChangeText={(text) => setFormData({ ...formData, endereco: text })}
-            mode="outlined"
-            style={styles.input}
-          />
-          <Button
-            mode="contained"
-            onPress={handleSubmit}
-            loading={loading}
-            style={styles.button}
-          >
-            Cadastrar
-          </Button>
-        </Modal>
-
         <Modal
           visible={resetPasswordModal}
           onDismiss={() => setResetPasswordModal(false)}
@@ -313,18 +209,11 @@ export default function AdminDashboard({ navigation }) {
       <FAB
         style={styles.fab}
         icon="plus"
-        onPress={() => setVisible(true)}
+        onPress={() => navigation.navigate('CadastrarEmpresa')}
         color="#FFFFFF"
         size="medium"
       />
 
-      <TouchableOpacity
-        onPress={handleLogout}
-        style={styles.logoutButton}
-        activeOpacity={0.7}
-      >
-        <RNText style={styles.logoutText}>Sair</RNText>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -432,6 +321,14 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     flex: 1,
   },
+  buttonsContainer: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+  },
+  editButton: {
+    borderRadius: 8,
+    backgroundColor: theme.colors.primary + '15',
+  },
   resetButton: {
     borderRadius: 8,
     backgroundColor: theme.colors.primary + '15',
@@ -484,9 +381,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     margin: theme.spacing.md,
     right: 0,
-    bottom: 70,
+    bottom: 20,
     backgroundColor: theme.colors.accent,
     ...theme.shadows.medium,
+  },
+  button: {
+    marginTop: theme.spacing.md,
+    borderRadius: theme.roundness - 2,
+    ...theme.shadows.small,
   },
   modal: {
     backgroundColor: theme.colors.surface,
@@ -502,28 +404,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.text,
   },
-  input: {
+  novaSenhaText: {
+    fontSize: 28,
+    textAlign: 'center',
+    marginVertical: theme.spacing.lg,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+    color: theme.colors.primary,
+    letterSpacing: 2,
+  },
+  copiedText: {
+    textAlign: 'center',
+    color: theme.colors.success,
     marginBottom: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
-  },
-  button: {
-    marginTop: theme.spacing.md,
-    borderRadius: theme.roundness - 2,
-    ...theme.shadows.small,
-  },
-  logoutButton: {
-    marginHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoutText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.text,
-    opacity: 0.6,
-    letterSpacing: 0.3,
   },
   novaSenhaText: {
     fontSize: 28,

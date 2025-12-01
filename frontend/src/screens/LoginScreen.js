@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Image, Animated, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { TextInput, Button, Text, Surface } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,33 +11,8 @@ export default function LoginScreen({ navigation }) {
   const [tipo, setTipo] = useState('admin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [senhaVisivel, setSenhaVisivel] = useState(false);
   const { signIn } = useAuth();
-  
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
 
   async function handleLogin() {
     if (!email || !senha) {
@@ -50,7 +25,10 @@ export default function LoginScreen({ navigation }) {
 
     try {
       const user = await signIn(email, senha, tipo);
-      navigation.replace(tipo === 'admin' ? 'AdminDashboard' : 'EmpresaDashboard');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: tipo === 'admin' ? 'AdminDashboard' : 'EmpresaDashboard' }],
+      });
     } catch (error) {
       setError(error.message);
     } finally {
@@ -69,18 +47,7 @@ export default function LoginScreen({ navigation }) {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <Animated.View
-          style={[
-            styles.content,
-            {
-              opacity: fadeAnim,
-              transform: [
-                { translateY: slideAnim },
-                { scale: scaleAnim },
-              ],
-            },
-          ]}
-        >
+        <View style={styles.content}>
           <Surface style={styles.surface}>
             <View style={styles.logoContainer}>
               <View style={styles.logoWrapper}>
@@ -145,8 +112,14 @@ export default function LoginScreen({ navigation }) {
               onChangeText={setSenha}
               mode="outlined"
               style={styles.input}
-              secureTextEntry
+              secureTextEntry={!senhaVisivel}
               left={<TextInput.Icon icon="lock" />}
+              right={
+                <TextInput.Icon
+                  icon={senhaVisivel ? "eye-off" : "eye"}
+                  onPress={() => setSenhaVisivel(!senhaVisivel)}
+                />
+              }
               outlineColor={theme.colors.primary}
               activeOutlineColor={theme.colors.primary}
             />
@@ -168,7 +141,7 @@ export default function LoginScreen({ navigation }) {
               Entrar
             </Button>
           </Surface>
-        </Animated.View>
+        </View>
       </LinearGradient>
     </KeyboardAvoidingView>
   );

@@ -52,7 +52,7 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: 'Token não fornecido' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'gatossauro');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'change_this_secret_key');
     req.user = decoded;
     next();
   } catch (error) {
@@ -93,28 +93,61 @@ const authMiddleware = async (req, res, next) => {
  *       500:
  *         description: Erro ao registrar entrada
  */
-router.post('/entrada', async (req, res) => {
-  const { placa, tipo } = req.body;
+router.post('/entrada', authMiddleware, async (req, res) => {
+  const { placa, tipo, modelo, cor } = req.body;
   
   try {
-    console.log('Tentando registrar entrada para:', { placa, tipo });
+    const empresaId = req.user.tipo === 'admin' ? req.body.empresa_id : req.user.id;
     
-    // Verificar se o veículo existe e pertence à empresa
-    const [veiculos] = await pool.query(
+    if (!empresaId) {
+      console.error('Empresa não identificada. req.user:', req.user);
+      return res.status(400).json({ 
+        error: 'Empresa não identificada',
+        details: 'Não foi possível identificar a empresa. Faça login novamente.'
+      });
+    }
+    
+    // Verificar se a empresa existe
+    const [empresas] = await pool.query('SELECT id FROM empresas WHERE id = ?', [empresaId]);
+    if (empresas.length === 0) {
+      console.error(`Empresa com ID ${empresaId} não encontrada. req.user:`, req.user);
+      return res.status(404).json({ 
+        error: 'Empresa não encontrada',
+        details: `A empresa com ID ${empresaId} não existe no sistema. Faça login novamente.`
+      });
+    }
+    
+    // Verificar se o veículo existe
+    let [veiculos] = await pool.query(
       'SELECT id, empresa_id, tipo FROM veiculos WHERE placa = ?',
       [placa]
     );
     
-    if (veiculos.length === 0) {
-      console.log('Veículo não encontrado:', placa);
-      return res.status(400).json({ 
-        error: 'Veículo não encontrado',
-        details: 'A placa informada não está cadastrada no sistema'
-      });
-    }
+    let veiculo;
     
-    const veiculo = veiculos[0];
-    console.log('Veículo encontrado:', veiculo);
+    // Se veículo não existe, criar automaticamente
+    if (veiculos.length === 0) {
+      // Criar veículo com dados básicos se não fornecidos
+      const [result] = await pool.query(
+        'INSERT INTO veiculos (empresa_id, placa, modelo, cor, tipo) VALUES (?, ?, ?, ?, ?)',
+        [empresaId, placa, modelo || 'Não informado', cor || 'Não informado', tipo || 'carro']
+      );
+      
+      veiculo = {
+        id: result.insertId,
+        empresa_id: empresaId,
+        tipo: tipo || 'carro'
+      };
+    } else {
+      veiculo = veiculos[0];
+      
+      // Verificar se pertence à empresa correta
+      if (veiculo.empresa_id !== empresaId && req.user.tipo !== 'admin') {
+        return res.status(403).json({ 
+          error: 'Veículo não pertence à sua empresa'
+        });
+      }
+    }
     
     // Verificar se já existe uma entrada sem saída correspondente
     const [registros] = await pool.query(
@@ -126,10 +159,15 @@ router.post('/entrada', async (req, res) => {
     );
     
     if (registros.length > 0) {
-      console.log('Veículo já está estacionado:', veiculo);
-      return res.status(400).json({ 
-        error: 'Veículo já está estacionado',
-        details: 'Este veículo já possui um registro de entrada sem saída'
+      // Retornar o registro existente ao invés de erro
+      return res.json({ 
+        message: 'Veículo já possui entrada registrada',
+        registro_id: registros[0].id,
+        veiculo: {
+          id: veiculo.id,
+          placa,
+          tipo: veiculo.tipo
+        }
       });
     }
     
@@ -139,7 +177,6 @@ router.post('/entrada', async (req, res) => {
       [veiculo.id, veiculo.empresa_id]
     );
     
-    console.log('Entrada registrada com sucesso:', result.insertId);
     res.json({ 
       message: 'Entrada registrada com sucesso',
       registro_id: result.insertId,
@@ -151,6 +188,17 @@ router.post('/entrada', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao registrar entrada:', error);
+    console.error('req.user:', req.user);
+    console.error('req.body:', req.body);
+    
+    // Se for erro de foreign key, dar mensagem mais clara
+    if (error.code === 'ER_NO_REFERENCED_ROW_2') {
+      return res.status(400).json({ 
+        error: 'Erro ao criar veículo',
+        details: 'A empresa associada não existe. Faça login novamente.'
+      });
+    }
+    
     res.status(500).json({ 
       error: 'Erro ao registrar entrada',
       details: error.message
