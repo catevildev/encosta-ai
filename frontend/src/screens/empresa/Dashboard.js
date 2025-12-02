@@ -281,7 +281,7 @@ export default function EmpresaDashboard({ navigation }) {
                 </View>
                 <View style={{ width: '80%', paddingRight: 10 }}>
                   <Title style={styles.welcomeTitle}>Bem-vindo,</Title>
-                  <Title style={styles.welcomeTitle}>Estacionamento 24H !</Title>
+                  <Title style={styles.welcomeTitle}>{user?.nome || 'Estacionamento'}</Title>
                   <Paragraph style={styles.welcomeSubtitle}>Gerencie seu estacionamento</Paragraph>
                 </View>
               </View>

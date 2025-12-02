@@ -127,7 +127,7 @@ export default function ConfirmarVeiculoScreen({ navigation, route }) {
 
             <View style={styles.ticketFooter}>
               <View style={styles.barcodePlaceholder} />
-              <Text style={styles.footerText}>Encosta Aí</Text>
+              <Text style={styles.footerText}>EstacionaAi</Text>
             </View>
           </View>
 

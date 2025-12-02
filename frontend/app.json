@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "estacionai-frontend",
+    "slug": "estacionai-frontend",
+    "version": "1.0.0",
+    "sdkVersion": "49.0.0",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "android": {
+      "package": "com.catevil.estacionaifrontend"
+    },
+    "plugins": [
+      "react-native-vision-camera",
+      "expo-build-properties"
+    ]
+  }
+}
