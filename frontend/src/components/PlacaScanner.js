@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Platform, Image } from 'react-native';
-import { Text, Button, Modal, TextInput, IconButton } from 'react-native-paper';
+import { Text, Button, Modal, IconButton } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../theme';
+import CustomInput from './CustomInput';
 
 export default function PlacaScanner({ visible, onClose, onPlacaDetected, mode = 'entrada' }) {
   const [capturedImage, setCapturedImage] = useState(null);
@@ -93,11 +94,11 @@ export default function PlacaScanner({ visible, onClose, onPlacaDetected, mode =
   const processOCR = async (image) => {
     try {
       setProcessing(true);
-      
+
       // Simular processamento OCR - em produção, usar API real
       // Por enquanto, vamos usar uma função simples que extrai texto
       // Você pode integrar com Google Vision API, Tesseract, ou API de placas brasileiras
-      
+
       // Simulação: após 1 segundo, pedir para digitar manualmente
       setTimeout(() => {
         setProcessing(false);
@@ -183,15 +184,16 @@ export default function PlacaScanner({ visible, onClose, onPlacaDetected, mode =
           <Text style={styles.modalTitle}>Digite a Placa</Text>
           <IconButton icon="close" onPress={handleClose} />
         </View>
-        <TextInput
-          label="Placa do Veículo"
+        <CustomInput
+          placeholder="Placa do Veículo"
           value={placa}
           onChangeText={setPlaca}
-          mode="outlined"
-          style={styles.input}
           autoCapitalize="characters"
           maxLength={7}
-          placeholder="ABC1234 ou ABC1D23"
+        // placeholder="ABC1234 ou ABC1D23" // CustomInput uses placeholder prop for label-like behavior, so we might lose the example placeholder. 
+        // However, CustomInput implementation uses the passed placeholder as the label/placeholder text.
+        // If we want a separate placeholder example, we might need to adjust CustomInput or just rely on the label.
+        // Let's stick to the pattern: placeholder becomes the label/placeholder.
         />
         <View style={styles.buttonRow}>
           <Button
@@ -260,16 +262,13 @@ export default function PlacaScanner({ visible, onClose, onPlacaDetected, mode =
           </Button>
         </View>
 
-        <TextInput
-          label="Placa do Veículo"
+        <CustomInput
+          placeholder="Placa do Veículo"
           value={placa}
           onChangeText={setPlaca}
-          mode="outlined"
-          style={styles.input}
           autoCapitalize="characters"
           maxLength={7}
-          placeholder="ABC1234 ou ABC1D23"
-          left={<TextInput.Icon icon="car" />}
+          icon="car"
         />
 
         {processing && (

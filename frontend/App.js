@@ -16,13 +16,14 @@ import ScannerEntradaScreen from './src/screens/empresa/ScannerEntradaScreen';
 import ConfirmarVeiculoScreen from './src/screens/empresa/ConfirmarVeiculoScreen';
 import CronometroScreen from './src/screens/empresa/CronometroScreen';
 import PagamentoScreen from './src/screens/empresa/PagamentoScreen';
+import SelecionarMetodoPagamentoScreen from './src/screens/empresa/SelecionarMetodoPagamentoScreen';
 import { theme } from './src/theme';
 
 const Stack = createStackNavigator();
 
 function LogoutButton({ navigation }) {
   const { signOut } = useAuth();
-  
+
   const handleLogout = async () => {
     try {
       await signOut();
@@ -153,13 +154,13 @@ function AppNavigator() {
           },
         }}
       >
-        <Stack.Screen 
-          name="Login" 
-          component={LoginScreen} 
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
           options={{ headerShown: false }}
         />
-        <Stack.Screen 
-          name="AdminDashboard" 
+        <Stack.Screen
+          name="AdminDashboard"
           component={AdminDashboard}
           options={({ navigation }) => ({
             title: 'Painel Administrativo',
@@ -169,94 +170,102 @@ function AppNavigator() {
             headerRight: () => <LogoutButton navigation={navigation} />,
           })}
         />
-        <Stack.Screen 
-          name="CadastrarEmpresa" 
+        <Stack.Screen
+          name="CadastrarEmpresa"
           component={CadastrarEmpresaScreen}
-          options={{ 
+          options={{
             title: 'Cadastrar Empresa',
             headerStyle: {
               backgroundColor: theme.colors.primary,
             },
           }}
         />
-        <Stack.Screen 
-          name="EditarEmpresa" 
+        <Stack.Screen
+          name="EditarEmpresa"
           component={EditarEmpresaScreen}
-          options={{ 
+          options={{
             title: 'Editar Empresa',
             headerStyle: {
               backgroundColor: theme.colors.primary,
             },
           }}
         />
-        <Stack.Screen 
-          name="EmpresaDashboard" 
+        <Stack.Screen
+          name="EmpresaDashboard"
           component={EmpresaDashboard}
-          options={{ 
+          options={({ navigation }) => ({
             title: 'Painel da Empresa',
             headerStyle: {
               backgroundColor: theme.colors.primary,
             },
-          }}
+            headerRight: () => <LogoutButton navigation={navigation} />,
+          })}
         />
-        <Stack.Screen 
-          name="ConfigValores" 
+        <Stack.Screen
+          name="ConfigValores"
           component={ConfigValoresScreen}
-          options={{ 
+          options={{
             title: 'Configurar Valores',
             headerStyle: {
               backgroundColor: theme.colors.primary,
             },
           }}
         />
-        <Stack.Screen 
-          name="SelecionarTempo" 
+        <Stack.Screen
+          name="SelecionarTempo"
           component={SelecionarTempoScreen}
-          options={{ 
+          options={{
             title: 'Selecionar Tempo',
             headerStyle: {
               backgroundColor: theme.colors.primary,
             },
           }}
         />
-        <Stack.Screen 
-          name="ConfirmarVeiculo" 
+        <Stack.Screen
+          name="ConfirmarVeiculo"
           component={ConfirmarVeiculoScreen}
-          options={{ 
+          options={{
             title: 'Confirmar Entrada',
             headerStyle: {
               backgroundColor: theme.colors.primary,
             },
           }}
         />
-        <Stack.Screen 
-          name="Cronometro" 
+        <Stack.Screen
+          name="Cronometro"
           component={CronometroScreen}
-          options={{ 
+          options={{
             title: 'Cronômetro',
             headerStyle: {
               backgroundColor: theme.colors.primary,
             },
           }}
         />
-        <Stack.Screen 
-          name="Pagamento" 
+        <Stack.Screen
+          name="Pagamento"
           component={PagamentoScreen}
-          options={{ 
+          options={{
             title: 'Pagamento',
             headerStyle: {
               backgroundColor: theme.colors.primary,
             },
           }}
         />
-        <Stack.Screen 
-          name="ScannerEntrada" 
+        <Stack.Screen
+          name="ScannerEntrada"
           component={ScannerEntradaScreen}
-          options={{ 
+          options={{
             title: 'Escanear Placa',
             headerStyle: {
               backgroundColor: theme.colors.primary,
             },
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="SelecionarMetodoPagamento"
+          component={SelecionarMetodoPagamentoScreen}
+          options={{
             headerShown: false,
           }}
         />

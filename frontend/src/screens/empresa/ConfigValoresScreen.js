@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Button, Card, Title, TextInput, Text, IconButton, List } from 'react-native-paper';
+import { Button, Card, Title, Text, IconButton, List } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
 import { theme } from '../../theme';
 import { api } from '../../config/api';
+import CustomInput from '../../components/CustomInput';
 
 export default function ConfigValoresScreen({ navigation }) {
   const [configValores, setConfigValores] = useState([]);
@@ -101,7 +102,7 @@ export default function ConfigValoresScreen({ navigation }) {
           <Card style={styles.card}>
             <Card.Content>
               <Title style={styles.sectionTitle}>Adicionar Nova Configuração</Title>
-              
+
               {error && (
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>{error}</Text>
@@ -111,7 +112,9 @@ export default function ConfigValoresScreen({ navigation }) {
               <List.Item
                 title="Tipo de Veículo"
                 description={tipoVeiculoLabel(novaConfig.tipo_veiculo)}
-                right={props => <List.Icon {...props} icon="chevron-down" />}
+                titleStyle={{ color: theme.colors.text }}
+                descriptionStyle={{ color: theme.colors.text }}
+                right={props => <List.Icon {...props} icon="chevron-down" color={theme.colors.text} />}
                 onPress={() => setShowPicker(true)}
                 style={styles.pickerButton}
               />
@@ -150,26 +153,22 @@ export default function ConfigValoresScreen({ navigation }) {
                 )}
               </View>
 
-              <TextInput
-                label="Valor por Hora (R$)"
+              <CustomInput
+                placeholder="Valor por Hora (R$)"
                 value={novaConfig.valor_hora}
                 onChangeText={text => setNovaConfig({ ...novaConfig, valor_hora: text })}
-                mode="outlined"
                 keyboardType="numeric"
-                style={styles.input}
-                left={<TextInput.Icon icon="currency-usd" />}
+                icon="currency-usd"
               />
-              
-              <TextInput
-                label="Valor por Fração (15min) (R$)"
+
+              <CustomInput
+                placeholder="Valor por Fração (15min) (R$)"
                 value={novaConfig.valor_fracao}
                 onChangeText={text => setNovaConfig({ ...novaConfig, valor_fracao: text })}
-                mode="outlined"
                 keyboardType="numeric"
-                style={styles.input}
-                left={<TextInput.Icon icon="clock-outline" />}
+                icon="clock-outline"
               />
-              
+
               <Button
                 mode="contained"
                 onPress={handleCreateConfig}
@@ -191,9 +190,9 @@ export default function ConfigValoresScreen({ navigation }) {
                     <Title style={styles.configTitle}>
                       {tipoVeiculoLabel(config.tipo_veiculo)}
                     </Title>
-                    
-                    <TextInput
-                      label="Valor por Hora (R$)"
+
+                    <CustomInput
+                      placeholder="Valor por Hora (R$)"
                       value={config.valor_hora.toString()}
                       onChangeText={(text) => {
                         const newConfigs = [...configValores];
@@ -201,14 +200,12 @@ export default function ConfigValoresScreen({ navigation }) {
                         newConfigs[index].valor_hora = parseFloat(text) || 0;
                         setConfigValores(newConfigs);
                       }}
-                      mode="outlined"
                       keyboardType="numeric"
-                      style={styles.input}
-                      left={<TextInput.Icon icon="currency-usd" />}
+                      icon="currency-usd"
                     />
-                    
-                    <TextInput
-                      label="Valor por Fração (15min) (R$)"
+
+                    <CustomInput
+                      placeholder="Valor por Fração (15min) (R$)"
                       value={config.valor_fracao.toString()}
                       onChangeText={(text) => {
                         const newConfigs = [...configValores];
@@ -216,12 +213,10 @@ export default function ConfigValoresScreen({ navigation }) {
                         newConfigs[index].valor_fracao = parseFloat(text) || 0;
                         setConfigValores(newConfigs);
                       }}
-                      mode="outlined"
                       keyboardType="numeric"
-                      style={styles.input}
-                      left={<TextInput.Icon icon="clock-outline" />}
+                      icon="clock-outline"
                     />
-                    
+
                     <Button
                       mode="contained"
                       onPress={() => handleUpdateConfig(config)}
@@ -254,6 +249,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     borderRadius: theme.roundness - 2,
     ...theme.shadows.medium,
+    backgroundColor: theme.colors.surface,
   },
   sectionTitle: {
     fontSize: 20,
@@ -262,15 +258,17 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   pickerButton: {
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: '#1F2937', // Darker background for button
     borderRadius: theme.roundness - 2,
     marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   pickerModal: {
     position: 'relative',
   },
   pickerOptions: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#1F2937', // Darker background for options
     borderRadius: theme.roundness - 2,
     marginBottom: theme.spacing.md,
     ...theme.shadows.small,
@@ -279,7 +277,7 @@ const styles = StyleSheet.create({
   pickerOption: {
     padding: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.backgroundSecondary,
+    borderBottomColor: '#374151', // Darker border
   },
   pickerOptionText: {
     fontSize: 16,
@@ -304,6 +302,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     borderRadius: theme.roundness - 2,
     ...theme.shadows.medium,
+    backgroundColor: theme.colors.surface,
   },
   configTitle: {
     fontSize: 18,

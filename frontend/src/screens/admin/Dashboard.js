@@ -257,6 +257,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.roundness - 2,
     ...theme.shadows.medium,
     overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
   },
   empresaHeader: {
     flexDirection: 'row',
@@ -301,7 +302,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
     paddingTop: theme.spacing.md,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.backgroundSecondary,
+    borderTopColor: '#374151', // Darker border
   },
   dataRow: {
     flexDirection: 'row',

@@ -6,9 +6,9 @@ export const theme = {
     ...DefaultTheme.colors,
     primary: '#6366F1', // Indigo moderno
     accent: '#8B5CF6', // Roxo moderno
-    background: '#FAFAFA',
-    surface: '#FFFFFF',
-    text: '#1F2937',
+    background: '#121212',
+    surface: '#2B2B2B',
+    text: '#F5F5F5',
     error: '#EF4444',
     success: '#10B981',
     warning: '#F59E0B',

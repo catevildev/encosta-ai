@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { TextInput, Button, Text, Title, Surface } from 'react-native-paper';
+import { Button, Text, Surface } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
 import { theme } from '../../theme';
 import { api } from '../../config/api';
+import CustomInput from '../../components/CustomInput';
 
 export default function CadastrarEmpresaScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [formData, setFormData] = useState({
     nome: '',
     cnpj: '',
@@ -69,83 +69,54 @@ export default function CadastrarEmpresaScreen({ navigation }) {
               </View>
             ) : null}
 
-            <TextInput
-              label="Nome *"
+            <CustomInput
+              placeholder="Nome *"
               value={formData.nome}
               onChangeText={(text) => setFormData({ ...formData, nome: text })}
-              mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="office-building" />}
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
+              icon="office-building"
             />
 
-            <TextInput
-              label="CNPJ *"
+            <CustomInput
+              placeholder="CNPJ *"
               value={formData.cnpj}
               onChangeText={(text) => setFormData({ ...formData, cnpj: text })}
-              mode="outlined"
-              style={styles.input}
               keyboardType="numeric"
-              left={<TextInput.Icon icon="card-account-details" />}
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
+              icon="card-account-details"
             />
 
-            <TextInput
-              label="Email *"
+            <CustomInput
+              placeholder="Email *"
               value={formData.email}
               onChangeText={(text) => setFormData({ ...formData, email: text })}
-              mode="outlined"
-              style={styles.input}
               keyboardType="email-address"
               autoCapitalize="none"
-              left={<TextInput.Icon icon="email" />}
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
+              icon="email"
             />
 
-            <TextInput
-              label="Senha *"
+            <CustomInput
+              placeholder="Senha *"
               value={formData.senha}
               onChangeText={(text) => setFormData({ ...formData, senha: text })}
-              mode="outlined"
-              style={styles.input}
-              secureTextEntry={!senhaVisivel}
-              left={<TextInput.Icon icon="lock" />}
-              right={
-                <TextInput.Icon
-                  icon={senhaVisivel ? "eye-off" : "eye"}
-                  onPress={() => setSenhaVisivel(!senhaVisivel)}
-                />
-              }
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
+              secureTextEntry
+              icon="lock"
+              isPassword
             />
 
-            <TextInput
-              label="Telefone"
+            <CustomInput
+              placeholder="Telefone"
               value={formData.telefone}
               onChangeText={(text) => setFormData({ ...formData, telefone: text })}
-              mode="outlined"
-              style={styles.input}
               keyboardType="phone-pad"
-              left={<TextInput.Icon icon="phone" />}
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
+              icon="phone"
             />
 
-            <TextInput
-              label="Endereço"
+            <CustomInput
+              placeholder="Endereço"
               value={formData.endereco}
               onChangeText={(text) => setFormData({ ...formData, endereco: text })}
-              mode="outlined"
-              style={styles.input}
               multiline
               numberOfLines={3}
-              left={<TextInput.Icon icon="map-marker" />}
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
+              icon="map-marker"
             />
 
             <Button
@@ -191,14 +162,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     ...theme.shadows.large,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: theme.spacing.xs,
-    color: theme.colors.primary,
-    letterSpacing: 0.5,
-  },
   subtitle: {
     fontSize: 14,
     textAlign: 'center',
@@ -217,10 +180,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '500',
-  },
-  input: {
-    marginBottom: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
   },
   button: {
     marginTop: theme.spacing.md,

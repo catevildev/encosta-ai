@@ -49,7 +49,7 @@ export default function EmpresaDashboard({ navigation }) {
         axios.get(`${api.baseURL}/api/vagas`),
         axios.get(`${api.baseURL}/api/veiculos`),
       ]);
-      
+
       setVagas(vagasResponse.data);
       setVeiculosCadastrados(veiculosCadastradosResponse.data);
     } catch (error) {
@@ -61,7 +61,7 @@ export default function EmpresaDashboard({ navigation }) {
       }
     }
   }
-  
+
   function getVagaColor(status) {
     switch (status) {
       case 'disponivel':
@@ -77,7 +77,7 @@ export default function EmpresaDashboard({ navigation }) {
         return '#9CA3AF';
     }
   }
-  
+
   function getVagaStatusText(status) {
     switch (status) {
       case 'disponivel':
@@ -94,7 +94,7 @@ export default function EmpresaDashboard({ navigation }) {
         return status;
     }
   }
-  
+
   function formatTimer(ms) {
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -102,7 +102,7 @@ export default function EmpresaDashboard({ navigation }) {
     const seconds = totalSeconds % 60;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }
-  
+
   const [vagaParaEntrada, setVagaParaEntrada] = useState(null);
 
   function handleVagaPress(vaga) {
@@ -168,15 +168,15 @@ export default function EmpresaDashboard({ navigation }) {
   async function handleEntrada(placa, vagaId = null) {
     try {
       setError('');
-      
+
       // Registrar entrada (cria veículo automaticamente se não existir)
       const entradaResponse = await axios.post(`${api.baseURL}/api/registros/entrada`, {
         placa: placa,
         tipo: 'carro' // Tipo padrão quando não especificado
       });
-      
+
       const veiculoId = entradaResponse.data.veiculo?.id;
-      
+
       // Se houver vaga selecionada, ocupar a vaga
       if (vagaId && entradaResponse.data.registro_id && veiculoId) {
         await axios.post(`${api.baseURL}/api/vagas/${vagaId}/ocupar`, {
@@ -184,7 +184,7 @@ export default function EmpresaDashboard({ navigation }) {
           registro_entrada_id: entradaResponse.data.registro_id
         });
       }
-      
+
       loadData();
       setVagaParaEntrada(null);
       alert('Entrada registrada com sucesso!');
@@ -205,7 +205,7 @@ export default function EmpresaDashboard({ navigation }) {
     setSaidaModal(true);
   }
 
-  async function confirmarSaida() { 
+  async function confirmarSaida() {
     try {
       setError('');
       console.log('Saída payload:', { placa: veiculoSaida.placa, senha: senhaSaida });
@@ -280,7 +280,8 @@ export default function EmpresaDashboard({ navigation }) {
                   <SquareParking size={24} color="#FFFFFF" />
                 </View>
                 <View style={{ width: '80%', paddingRight: 10 }}>
-                  <Title style={styles.welcomeTitle}>Bem-vindo, {user?.nome || ''}!</Title>
+                  <Title style={styles.welcomeTitle}>Bem-vindo,</Title>
+                  <Title style={styles.welcomeTitle}>Estacionamento 24H !</Title>
                   <Paragraph style={styles.welcomeSubtitle}>Gerencie seu estacionamento</Paragraph>
                 </View>
               </View>
@@ -315,11 +316,11 @@ export default function EmpresaDashboard({ navigation }) {
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <SquareParking size={20} color={theme.colors.text} style={{ marginRight: 6}} />
-                  <Title style={[styles.sectionTitle, { marginBottom: 0 }]}>Vagas de Estacionamento</Title>
+                  <SquareParking size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Title style={[styles.sectionTitle, { marginBottom: 0, color: '#FFFFFF' }]}>Vagas de Estacionamento</Title>
                 </View>
               </View>
-              
+
               {vagas.length === 0 ? (
                 <Card style={styles.emptyCard}>
                   <Card.Content>
@@ -335,10 +336,10 @@ export default function EmpresaDashboard({ navigation }) {
                 <View style={styles.vagasGrid}>
                   {vagas.map((vaga) => {
                     const vagaColor = getVagaColor(vaga.status);
-                    const tempoEstacionado = vaga.data_entrada 
-                      ? now - new Date(vaga.data_entrada).getTime() 
+                    const tempoEstacionado = vaga.data_entrada
+                      ? now - new Date(vaga.data_entrada).getTime()
                       : 0;
-                    
+
                     return (
                       <TouchableOpacity
                         key={vaga.id}
@@ -366,11 +367,11 @@ export default function EmpresaDashboard({ navigation }) {
                             );
                           }
                         }}
-                        style={[styles.vagaCard, { borderLeftColor: vagaColor, borderLeftWidth: 4 }]}
+                        style={[styles.vagaCard, { borderLeftColor: vagaColor, borderLeftWidth: 4, backgroundColor: '#2B2B2B' }]}
                         activeOpacity={0.7}
                       >
                         <View style={styles.vagaHeader}>
-                          <Text style={styles.vagaNumero}>Vaga {vaga.numero}</Text>
+                          <Text style={[styles.vagaNumero, { color: '#FFFFFF' }]}>Vaga {vaga.numero}</Text>
                           <View style={[styles.vagaStatusBadge, { backgroundColor: vagaColor + '20' }]}>
                             <Text style={[styles.vagaStatusText, { color: vagaColor }]}>
                               {getVagaStatusText(vaga.status)}
@@ -379,9 +380,9 @@ export default function EmpresaDashboard({ navigation }) {
                         </View>
                         {vaga.status === 'estacionado' && vaga.placa && (
                           <View style={styles.vagaInfo}>
-                            <Text style={styles.vagaPlaca}>{vaga.placa}</Text>
+                            <Text style={[styles.vagaPlaca, { color: '#FFFFFF' }]}>{vaga.placa}</Text>
                             {vaga.data_entrada && (
-                              <Text style={styles.vagaTimer}>
+                              <Text style={[styles.vagaTimer, { color: '#FFFFFF' }]}>
                                 {formatTimer(tempoEstacionado)}
                               </Text>
                             )}
@@ -389,9 +390,9 @@ export default function EmpresaDashboard({ navigation }) {
                         )}
                         {vaga.status === 'pagando' && vaga.placa && (
                           <View style={styles.vagaInfo}>
-                            <Text style={styles.vagaPlaca}>{vaga.placa}</Text>
+                            <Text style={[styles.vagaPlaca, { color: '#FFFFFF' }]}>{vaga.placa}</Text>
                             {vaga.data_entrada && (
-                              <Text style={styles.vagaTimer}>
+                              <Text style={[styles.vagaTimer, { color: '#FFFFFF' }]}>
                                 {formatTimer(tempoEstacionado)}
                               </Text>
                             )}
@@ -602,13 +603,7 @@ export default function EmpresaDashboard({ navigation }) {
         size="medium"
       />
 
-      <TouchableOpacity
-        onPress={handleLogout}
-        style={styles.logoutButton}
-        activeOpacity={0.7}
-      >
-        <RNText style={styles.logoutText}>Sair</RNText>
-      </TouchableOpacity>
+
 
       <PlacaScanner
         visible={scannerVisible}

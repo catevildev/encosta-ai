@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
-import { TextInput, Button, Text, Surface } from 'react-native-paper';
+import { Button, Text, Surface } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { theme } from '../theme';
+import CustomInput from '../components/CustomInput';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -24,11 +25,8 @@ export default function LoginScreen({ navigation }) {
     setError('');
 
     try {
-      const user = await signIn(email, senha, tipo);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: tipo === 'admin' ? 'AdminDashboard' : 'EmpresaDashboard' }],
-      });
+      await signIn(email, senha, tipo);
+      // Navigation is handled by App.js based on auth state
     } catch (error) {
       setError(error.message);
     } finally {
@@ -37,7 +35,7 @@ export default function LoginScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -58,10 +56,10 @@ export default function LoginScreen({ navigation }) {
                 />
               </View>
             </View>
-            
+
             <Text style={styles.title}>EstacionaAI</Text>
             <Text style={styles.subtitle}>Sistema de Gestão de Estacionamento</Text>
-            
+
             <View style={styles.toggleContainer}>
               <TouchableOpacity
                 onPress={() => setTipo('admin')}
@@ -93,35 +91,23 @@ export default function LoginScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              label="Email"
+            <CustomInput
+              placeholder="Email"
               value={email}
               onChangeText={setEmail}
-              mode="outlined"
-              style={styles.input}
               keyboardType="email-address"
               autoCapitalize="none"
-              left={<TextInput.Icon icon="email" />}
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
+              icon="email"
             />
 
-            <TextInput
-              label="Senha"
+            <CustomInput
+              placeholder="Senha"
               value={senha}
               onChangeText={setSenha}
-              mode="outlined"
-              style={styles.input}
               secureTextEntry={!senhaVisivel}
-              left={<TextInput.Icon icon="lock" />}
-              right={
-                <TextInput.Icon
-                  icon={senhaVisivel ? "eye-off" : "eye"}
-                  onPress={() => setSenhaVisivel(!senhaVisivel)}
-                />
-              }
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
+              icon="lock"
+              isPassword
+              onRightIconPress={() => setSenhaVisivel(!senhaVisivel)}
             />
 
             {error ? (
@@ -187,22 +173,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: theme.spacing.xs,
-    color: theme.colors.primary,
+    color: '#6366F1', // Indigo mais brilhante para contraste
     letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 14,
     textAlign: 'center',
     marginBottom: theme.spacing.lg,
-    color: theme.colors.text,
-    opacity: 0.7,
+    color: '#9CA3AF', // Cinza claro
+    opacity: 0.9,
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: '#1F2937', // Cinza escuro para o fundo do toggle
     borderRadius: theme.roundness - 2,
     padding: 4,
     marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   toggleButton: {
     flex: 1,
@@ -219,16 +207,12 @@ const styles = StyleSheet.create({
   toggleText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.text,
-    opacity: 0.7,
+    color: '#9CA3AF', // Cinza claro para texto inativo
+    opacity: 1,
   },
   toggleTextActive: {
     color: '#FFFFFF',
     opacity: 1,
-  },
-  input: {
-    marginBottom: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
   },
   button: {
     marginTop: theme.spacing.md,

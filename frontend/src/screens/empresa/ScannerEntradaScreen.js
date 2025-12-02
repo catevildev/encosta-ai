@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import Feather from 'react-native-vector-icons/Feather';
 import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, ActivityIndicator, Image, Platform } from 'react-native';
-import { Text, Title, Button, TextInput, IconButton, List, Portal, Modal } from 'react-native-paper';
+import { Text, Title, Button, IconButton, List, Portal, Modal } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../../theme';
 import axios from 'axios';
 import { api } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
+import CustomInput from '../../components/CustomInput';
 
 export default function ScannerEntradaScreen({ navigation, route }) {
   const { vaga, tempo } = route.params || {};
@@ -128,7 +130,7 @@ export default function ScannerEntradaScreen({ navigation, route }) {
 
   async function handlePlacaDetected(placaFinal) {
     let veiculo = veiculosCadastrados.find(v => v.placa === placaFinal);
-    
+
     // Se veículo não existe, criar automaticamente
     if (!veiculo) {
       try {
@@ -139,7 +141,7 @@ export default function ScannerEntradaScreen({ navigation, route }) {
           cor: cor.trim(),
           tipo: tipo
         });
-        
+
         veiculo = {
           id: response.data.id,
           placa: placaFinal,
@@ -147,7 +149,7 @@ export default function ScannerEntradaScreen({ navigation, route }) {
           cor: cor.trim(),
           tipo: tipo
         };
-        
+
         // Atualizar lista de veículos
         await loadVeiculos();
       } catch (error) {
@@ -161,86 +163,27 @@ export default function ScannerEntradaScreen({ navigation, route }) {
     }
 
     // Navegar para tela de confirmação
-    navigation.navigate('ConfirmarVeiculo', { 
-      veiculo, 
-      vaga, 
-      tempo,
-      onConfirm: async () => {
-        await confirmarEntrada(veiculo, vaga, tempo);
-      }
+    navigation.navigate('ConfirmarVeiculo', {
+      veiculo,
+      vaga,
+      tempo
     });
   }
 
-  async function confirmarEntrada(veiculo, vaga, tempo) {
-    try {
-      // Registrar entrada (cria veículo automaticamente se não existir)
-      const entradaResponse = await axios.post(`${api.baseURL}/api/registros/entrada`, {
-        placa: veiculo.placa,
-        tipo: veiculo.tipo,
-        modelo: veiculo.modelo,
-        cor: veiculo.cor
-      });
-      
-      // Atualizar veiculo.id caso tenha sido criado
-      const veiculoId = entradaResponse.data.veiculo?.id || veiculo.id;
-      
-      await axios.post(`${api.baseURL}/api/vagas/${vaga.id}/ocupar`, {
-        veiculo_id: veiculoId,
-        registro_entrada_id: entradaResponse.data.registro_id,
-        tempo_estimado_minutos: tempo
-      });
-      
-      Alert.alert('Sucesso', 'Entrada registrada com sucesso!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'EmpresaDashboard' }],
-            });
-          },
-        },
-      ]);
-    } catch (error) {
-      console.error('Erro ao confirmar entrada:', error);
-      
-      // Se a empresa não foi encontrada, fazer logout e pedir para fazer login novamente
-      if (error.response?.status === 404 && error.response?.data?.error === 'Empresa não encontrada') {
-        Alert.alert(
-          'Sessão Expirada',
-          'Sua sessão expirou ou a empresa não foi encontrada. Por favor, faça login novamente.',
-          [
-            {
-              text: 'OK',
-              onPress: async () => {
-                await signOut();
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Login' }],
-                });
-              },
-            },
-          ]
-        );
-        return;
-      }
-      
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data?.details || 'Erro ao confirmar entrada. Tente novamente.';
-      Alert.alert('Erro', errorMessage);
-    }
-  }
-
   return (
-    <LinearGradient
-      colors={[theme.colors.primary, theme.colors.accent]}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
+    <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Feather name="chevron-left" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <Title style={styles.headerTitle}>Rotativo Digital</Title>
+          <View style={{ width: 24 }} />
+        </View>
+
         <View style={styles.surface}>
           <Title style={styles.title}>Escanear Placa</Title>
           <Text style={styles.subtitle}>Vaga {vaga?.numero}</Text>
@@ -267,6 +210,7 @@ export default function ScannerEntradaScreen({ navigation, route }) {
               icon="camera"
               style={styles.actionButton}
               disabled={processing}
+              textColor={theme.colors.text}
             >
               Tirar Foto
             </Button>
@@ -276,60 +220,46 @@ export default function ScannerEntradaScreen({ navigation, route }) {
               icon="image"
               style={styles.actionButton}
               disabled={processing}
+              textColor={theme.colors.text}
             >
               Galeria
             </Button>
           </View>
 
-          <TextInput
-            label="Placa do Veículo *"
+          <CustomInput
+            placeholder="Placa do Veículo *"
             value={placa}
-            onChangeText={setPlaca}
-            mode="outlined"
-            style={styles.input}
+            onChangeText={(text) => setPlaca(text.toUpperCase())}
             autoCapitalize="characters"
             maxLength={7}
-            placeholder="ABC1234 ou ABC1D23"
-            left={<TextInput.Icon icon="car" />}
-            outlineColor={theme.colors.primary}
-            activeOutlineColor={theme.colors.primary}
+            icon="car"
           />
 
-          <TextInput
-            label="Modelo do Veículo *"
+          <CustomInput
+            placeholder="Modelo do Veículo *"
             value={modelo}
             onChangeText={setModelo}
-            mode="outlined"
-            style={styles.input}
-            placeholder="Ex: Honda Civic"
-            left={<TextInput.Icon icon="car-sports" />}
-            outlineColor={theme.colors.primary}
-            activeOutlineColor={theme.colors.primary}
+            icon="car-sports"
           />
 
-          <TextInput
-            label="Cor do Veículo *"
+          <CustomInput
+            placeholder="Cor do Veículo *"
             value={cor}
             onChangeText={setCor}
-            mode="outlined"
-            style={styles.input}
-            placeholder="Ex: Branco"
-            left={<TextInput.Icon icon="palette" />}
-            outlineColor={theme.colors.primary}
-            activeOutlineColor={theme.colors.primary}
+            icon="palette"
           />
 
-          <TextInput
-            label="Tipo do Veículo *"
-            value={tipo === 'carro' ? 'Carro' : tipo === 'moto' ? 'Moto' : 'Caminhão'}
-            mode="outlined"
-            style={styles.input}
-            onPressIn={() => setShowTipoPicker(true)}
-            right={<TextInput.Icon icon="chevron-down" />}
-            left={<TextInput.Icon icon="car-multiple" />}
-            outlineColor={theme.colors.primary}
-            activeOutlineColor={theme.colors.primary}
-          />
+          <TouchableOpacity onPress={() => setShowTipoPicker(true)}>
+            <View pointerEvents="none">
+              <CustomInput
+                placeholder="Tipo do Veículo *"
+                value={tipo === 'carro' ? 'Carro' : tipo === 'moto' ? 'Moto' : 'Caminhão'}
+                icon="car-multiple"
+                rightIcon="chevron-down"
+                editable={false}
+              />
+            </View>
+          </TouchableOpacity>
 
           <Portal>
             <Modal
@@ -339,6 +269,7 @@ export default function ScannerEntradaScreen({ navigation, route }) {
             >
               <List.Item
                 title="Carro"
+                titleStyle={{ color: theme.colors.text }}
                 onPress={() => {
                   setTipo('carro');
                   setShowTipoPicker(false);
@@ -346,6 +277,7 @@ export default function ScannerEntradaScreen({ navigation, route }) {
               />
               <List.Item
                 title="Moto"
+                titleStyle={{ color: theme.colors.text }}
                 onPress={() => {
                   setTipo('moto');
                   setShowTipoPicker(false);
@@ -353,6 +285,7 @@ export default function ScannerEntradaScreen({ navigation, route }) {
               />
               <List.Item
                 title="Caminhão"
+                titleStyle={{ color: theme.colors.text }}
                 onPress={() => {
                   setTipo('caminhao');
                   setShowTipoPicker(false);
@@ -373,32 +306,48 @@ export default function ScannerEntradaScreen({ navigation, route }) {
               mode="outlined"
               onPress={() => navigation.goBack()}
               style={styles.button}
+              textColor={theme.colors.text}
             >
               Cancelar
             </Button>
             <Button
               mode="contained"
               onPress={handleConfirm}
-              style={styles.button}
+              style={styles.confirmButton}
               loading={criandoVeiculo}
               disabled={!placa.trim() || !modelo.trim() || !cor.trim()}
             >
-              {criandoVeiculo ? 'Criando Veículo...' : 'Confirmar'}
+              {criandoVeiculo ? 'Criando...' : 'Confirmar'}
             </Button>
           </View>
         </View>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     padding: theme.spacing.md,
     paddingTop: theme.spacing.xl,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.lg,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.text,
   },
   surface: {
     padding: theme.spacing.lg,
@@ -417,8 +366,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: theme.spacing.xl,
     fontSize: 16,
-    color: theme.colors.text,
-    opacity: 0.7,
+    color: '#9CA3AF',
   },
   imagePreview: {
     position: 'relative',
@@ -446,10 +394,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-  },
-  input: {
-    marginBottom: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
+    borderColor: '#4B5563',
   },
   processingContainer: {
     flexDirection: 'row',
@@ -457,28 +402,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: theme.spacing.md,
     padding: theme.spacing.sm,
-    backgroundColor: theme.colors.primary + '10',
+    backgroundColor: theme.colors.surface + '40',
     borderRadius: theme.roundness / 2,
   },
   processingText: {
     marginLeft: theme.spacing.sm,
-    color: theme.colors.primary,
+    color: theme.colors.text,
     fontSize: 14,
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: theme.spacing.md,
+    marginTop: theme.spacing.sm,
   },
   button: {
     flex: 1,
-    marginTop: theme.spacing.sm,
+    borderColor: '#4B5563',
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: theme.colors.success,
   },
   pickerModal: {
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.md,
     margin: theme.spacing.md,
     borderRadius: theme.roundness - 2,
+    borderWidth: 1,
+    borderColor: '#4B5563',
   },
 });
 

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { TextInput, Button, Text, Surface } from 'react-native-paper';
+import { Button, Text, Surface } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
 import { theme } from '../../theme';
 import { api } from '../../config/api';
+import CustomInput from '../../components/CustomInput';
+
 export default function EditarEmpresaScreen({ navigation, route }) {
   const { empresa } = route.params || {};
   const [loading, setLoading] = useState(false);
@@ -48,7 +50,7 @@ export default function EditarEmpresaScreen({ navigation, route }) {
         endereco: formData.endereco,
         total_vagas: formData.total_vagas ? parseInt(formData.total_vagas) : undefined,
       };
-      
+
       await axios.put(
         `${api.baseURL}/api/empresas/${empresa.id}`,
         dataToSend
@@ -96,15 +98,11 @@ export default function EditarEmpresaScreen({ navigation, route }) {
               </View>
             ) : null}
 
-            <TextInput
-              label="Nome *"
+            <CustomInput
+              placeholder="Nome *"
               value={formData.nome}
               onChangeText={(text) => setFormData({ ...formData, nome: text })}
-              mode="outlined"
-              style={styles.input}
-              left={<TextInput.Icon icon="office-building" />}
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
+              icon="office-building"
             />
 
             <View style={styles.readOnlyContainer}>
@@ -117,43 +115,33 @@ export default function EditarEmpresaScreen({ navigation, route }) {
               <Text style={styles.readOnlyValue}>{empresa.email}</Text>
             </View>
 
-            <TextInput
-              label="Telefone"
+            <CustomInput
+              placeholder="Telefone"
               value={formData.telefone}
               onChangeText={(text) => setFormData({ ...formData, telefone: text })}
-              mode="outlined"
-              style={styles.input}
               keyboardType="phone-pad"
-              left={<TextInput.Icon icon="phone" />}
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
+              icon="phone"
             />
 
-            <TextInput
-              label="Endereço"
+            <CustomInput
+              placeholder="Endereço"
               value={formData.endereco}
               onChangeText={(text) => setFormData({ ...formData, endereco: text })}
-              mode="outlined"
-              style={styles.input}
               multiline
               numberOfLines={3}
-              left={<TextInput.Icon icon="map-marker" />}
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
+              icon="map-marker"
             />
 
-            <TextInput
-              label="Quantidade de Vagas *"
+            <CustomInput
+              placeholder="Quantidade de Vagas *"
               value={formData.total_vagas}
               onChangeText={(text) => setFormData({ ...formData, total_vagas: text.replace(/[^0-9]/g, '') })}
-              mode="outlined"
-              style={styles.input}
               keyboardType="numeric"
-              left={<TextInput.Icon icon="car-multiple" />}
-              outlineColor={theme.colors.primary}
-              activeOutlineColor={theme.colors.primary}
-              helperText="Apenas administradores podem alterar a quantidade de vagas"
+              icon="car-multiple"
             />
+            <Text style={{ fontSize: 12, color: theme.colors.text, opacity: 0.6, marginLeft: 12, marginTop: -8, marginBottom: 16 }}>
+              Apenas administradores podem alterar a quantidade de vagas
+            </Text>
 
             <Button
               mode="contained"
@@ -224,7 +212,7 @@ const styles = StyleSheet.create({
   readOnlyContainer: {
     marginBottom: theme.spacing.md,
     padding: theme.spacing.sm,
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: '#1F2937', // Dark gray instead of light gray
     borderRadius: theme.roundness / 2,
   },
   readOnlyLabel: {

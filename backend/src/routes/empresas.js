@@ -281,9 +281,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
         );
       } else {
         await connection.query(
-          'UPDATE empresas SET nome = ?, telefone = ?, endereco = ? WHERE id = ?',
-          [nome, telefone, endereco, empresaId]
-        );
+      'UPDATE empresas SET nome = ?, telefone = ?, endereco = ? WHERE id = ?',
+      [nome, telefone, endereco, empresaId]
+    );
       }
 
       // Se total_vagas foi alterado e é admin, ajustar vagas
@@ -326,8 +326,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
 
       await connection.commit();
-      res.json({ message: 'Empresa atualizada com sucesso' });
-    } catch (error) {
+    res.json({ message: 'Empresa atualizada com sucesso' });
+  } catch (error) {
       await connection.rollback();
       throw error;
     } finally {
